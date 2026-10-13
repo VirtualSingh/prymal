@@ -84,17 +84,34 @@ return Home without errors.
 
 ## Milestone 3 --- Run flow and permission handling
 
--   [ ] Add a clear Start Run entry.
--   [ ] Explain location permission in context.
--   [ ] Handle granted, denied, and unavailable location states.
--   [ ] Implement run state transitions: idle → recording → paused →
-    recording → finished.
--   [ ] Track elapsed duration correctly through pause/resume.
--   [ ] Prevent duplicate intervals/subscriptions and clean up location
-    watchers correctly.
--   [ ] Keep a visible recording state and safe finish/cancel
-    interactions.
--   [ ] Validate on Android with permission edge cases.
+-   [x] Add a clear Start Run entry. (Home card opens `/run`;
+    confirmed on device 2026-10-14.)
+-   [x] Explain location permission in context. (Explainer before the
+    system prompt; confirmed on device 2026-10-14.)
+-   [x] Handle granted, denied, and unavailable location states.
+    (Undetermined, denied/can-ask-again, blocked → Open settings, phone
+    location off → Turn on location, error → Try again. Founder
+    confirmed permission flows on device 2026-10-14; the "error" state
+    can't be triggered manually.)
+-   [x] Implement run state transitions: idle → recording → paused →
+    recording → finished. (Pure reducer, unit-tested; UI confirmed on device
+    2026-10-14.)
+-   [x] Track elapsed duration correctly through pause/resume.
+    (Timestamp-based; unit-tested incl. multiple pause/resume cycles;
+    confirmed on device 2026-10-14.)
+-   [x] Prevent duplicate intervals/subscriptions and clean up location
+    watchers correctly. (One interval keyed on status; watcher removed
+    on cleanup, including if it resolves after unmount. Verified by code
+    review; on device, pause/resume and leaving the screen behaved
+    correctly, 2026-10-14. No leak-detection tooling was used.)
+-   [x] Keep a visible recording state and safe finish/cancel
+    interactions. (Status badge, finish confirmation, discard guard on
+    close/back. Confirmed on device 2026-10-14.)
+-   [x] Validate on Android with permission edge cases. (Founder
+    confirmed permission flows on device, 2026-10-14.)
+-   [x] Tab bar icons (founder request, 2026-10-13): Ionicons via
+    `@react-native-vector-icons/ionicons`, filled when selected. Confirmed
+    on device 2026-10-14.
 
 **Exit criteria:** A user can start, pause, resume, and finish a run
 without the timer or location watcher duplicating or leaking.
@@ -205,5 +222,6 @@ are coded.
 
 ## Immediate next action
 
-Milestones 1 and 2 are validated on the founder's Android phone. Next:
-start Milestone 3 (run flow and permission handling).
+Milestones 1--3 are validated on the founder's Android phone. Next:
+Milestone 4 (GPS route and metrics). Start by deciding foreground-only
+vs. background tracking, since background needs a development build.

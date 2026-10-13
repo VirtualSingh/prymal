@@ -17,13 +17,20 @@ const navTheme: Theme = {
   },
 };
 
-// Root stack. Today it only holds the tab group; the active-run and
-// run-summary screens (Milestone 3+) will be pushed on top of it.
+// Root stack: the tab group, with the run screen presented over it full
+// screen (no tab bar while running).
 export default function RootLayout() {
   return (
     <ThemeProvider value={navTheme}>
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen
+          name="run"
+          options={{
+            presentation: "fullScreenModal",
+            animation: "slide_from_bottom",
+          }}
+        />
       </Stack>
       <StatusBar style="light" />
     </ThemeProvider>

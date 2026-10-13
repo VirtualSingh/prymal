@@ -1,4 +1,6 @@
-import { StyleSheet, Text, View } from "react-native";
+import { Ionicons } from "@react-native-vector-icons/ionicons";
+import { router } from "expo-router";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { EmptyState, RouteGlyph } from "@/components/EmptyState";
 import { Screen } from "@/components/Screen";
@@ -49,28 +51,31 @@ export function HomeScreen() {
   );
 }
 
-// Run tracking doesn't exist yet (ROADMAP Milestone 3), so this is a
-// non-pressable surface that says so, rather than a button that does nothing.
+// Opens the run screen. The run doesn't start until the user taps Start
+// there, after any location-permission explanation.
 function StartRunCard() {
   return (
-    <View
-      style={styles.startCard}
-      accessible
+    <Pressable
+      onPress={() => router.push("/run")}
+      style={({ pressed }) => [styles.startCard, pressed && styles.pressed]}
       accessibilityRole="button"
-      accessibilityState={{ disabled: true }}
-      accessibilityLabel="Start a run. Coming soon, run tracking is not available yet."
+      accessibilityLabel="Start a run"
+      accessibilityHint="Opens the run screen"
     >
       <View style={styles.playCircle}>
-        <View style={styles.playTriangle} />
+        <Ionicons
+          name="play"
+          size={28}
+          color={colors.accent}
+          style={styles.playIcon}
+        />
       </View>
       <View style={styles.startText}>
         <Text style={styles.startTitle}>Start a run</Text>
         <Text style={styles.startSubtitle}>Track your next adventure</Text>
-        <View style={styles.soonPill}>
-          <Text style={styles.soonPillText}>Run tracking coming soon</Text>
-        </View>
       </View>
-    </View>
+      <Ionicons name="chevron-forward" size={24} color={colors.textOnAccent} />
+    </Pressable>
   );
 }
 
@@ -149,17 +154,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginRight: spacing.lg,
   },
-  // Classic border trick for a right-pointing triangle.
-  playTriangle: {
-    width: 0,
-    height: 0,
-    marginLeft: 4,
-    borderTopWidth: 10,
-    borderBottomWidth: 10,
-    borderLeftWidth: 16,
-    borderTopColor: "transparent",
-    borderBottomColor: "transparent",
-    borderLeftColor: colors.accent,
+  // The play glyph looks off-centre in a circle; nudge it right.
+  playIcon: {
+    marginLeft: 3,
+  },
+  pressed: {
+    opacity: 0.85,
   },
   startText: {
     flex: 1,
@@ -174,20 +174,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "500",
     marginTop: 2,
-  },
-  soonPill: {
-    alignSelf: "flex-start",
-    marginTop: spacing.sm,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    borderColor: colors.textOnAccentSecondary,
-  },
-  soonPillText: {
-    color: colors.textOnAccent,
-    fontSize: 12,
-    fontWeight: "700",
   },
 
   statsRow: {

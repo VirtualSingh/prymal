@@ -9,7 +9,9 @@
 **Overall phase:** Milestone 1 done and committed (`37ee4a5`).
 Milestone 2 (navigation + screen skeletons) done: automated checks pass,
 tabs and Android back behavior confirmed on the founder's Android phone,
-committed as `3d5777d`. Next: Milestone 3.
+committed as `3d5777d`. Milestone 3 (run flow + permission) and tab
+icons done: automated checks pass and founder confirmed them on the
+Android phone (2026-10-14). Next: Milestone 4.
 
 **Founder-reported facts:** - \[x\] Created the Expo app and named it
 `prymal`. - \[x\] Connected and ran the app on an Android phone. - \[x\]
@@ -39,19 +41,20 @@ in small steps and test the basic application as soon as possible.
 
 ## Current milestone
 
-**Milestone 2 --- Navigation and screen skeletons**
+**Milestone 3 --- Run flow and permission handling** (+ tab icons)
 
-Status: **Done.** Automated checks pass; tab navigation and Android back
-behavior confirmed on the founder's Android phone (2026-10-13).
-Committed as `3d5777d`.
+Status: **Done.** Automated checks pass; founder confirmed icons,
+permission flows, and the run steps on the Android phone (2026-10-14).
 
-Desired behavior: tappable Home / Activities / Profile tabs; simple,
-consistent empty states for Activities and Profile; Android back returns
-to Home and then exits; no auth or backend.
+Desired behavior: Start a run opens a run screen; location permission
+is explained before the system prompt; allowed / denied / blocked /
+location-off states are handled; start, pause, resume, finish with a
+correct timer; clear recording state; finishing and leaving mid-run ask
+for confirmation. No distance, route, or saving yet (Milestones 4--5).
 
-**Previous milestone:** Milestone 1 (Home screen) --- validated on the
-founder's Android phone and committed as `37ee4a5`. Unconfirmed minor
-checks: max font size, 3-button navigation mode.
+**Previous milestones:** Milestone 1 (`37ee4a5`) and Milestone 2
+(`3d5777d`) validated on the founder's Android phone. Unconfirmed minor
+checks from Milestone 1: max font size, 3-button navigation mode.
 
 ## Session log
 
@@ -356,6 +359,207 @@ now" on their Android phone (Expo Go).
 **Next single action:** Start Milestone 3 (run flow and permission
 handling).
 
+### Milestone 3 implementation (+ tab icons) --- 2026-10-13
+
+**Milestone / status:** Milestone 3 --- implemented, automated checks
+pass, physical-device validation **not yet done**.
+
+**What changed:**
+
+- **Tab icons** (founder request): Home `home`, Activities `footsteps`,
+  Profile `person` from Ionicons; filled when selected, outline
+  otherwise. The Milestone 2 indicator bar is removed.
+- **Start a run** on Home is now a real button that opens the run screen
+  (`/run`), presented full screen over the tabs. The "coming soon" pill
+  and hand-drawn play triangle are replaced by Ionicons.
+- **Run screen** (`src/screens/RunScreen.tsx`):
+  - **Permission gate** (shown only before a run starts). Checking never
+    prompts. The system dialog appears only after the user taps "Allow
+    location" on Prymal's explainer. States: not asked yet / denied but
+    can ask again → explainer + Allow location; permanently denied →
+    Open settings; phone location off → Turn on location (Android's
+    in-app dialog); error → Try again. Every state has "Not now". The
+    screen re-checks when the app returns from Settings.
+  - **Run states**: Ready to start → Recording → Paused ⇄ Recording →
+    Finished. Big `mm:ss` / `h:mm:ss` timer; badge shows "Recording"
+    (lime, with dot) or "Paused" (pause icon), so state is not shown by
+    color alone.
+  - **Controls**: Start; Pause / Resume; Finish (confirmation dialog: "You
+    won't be able to resume it").
+  - **Leaving mid-run** (X button or Android back) asks "Discard this
+    run?" --- Keep running / Discard.
+  - **Finished**: "Run complete" + duration + "This run isn't saved yet."
+    Done returns Home.
+  - **GPS status row**: Searching for GPS… / GPS good ±N m / GPS signal
+    weak ±N m (> 20 m) / GPS unavailable. Note under it: "Distance and
+    pace arrive in the next update."
+- **Logic**:
+  - `src/features/run/runSession.ts` --- pure reducer. Elapsed time is
+    computed from `Date.now()` timestamps, not by counting ticks, so
+    it's right after pauses and when JS timers are throttled. Invalid
+    transitions (double start, pause while paused, anything after
+    finish) are ignored.
+  - `useRunSession` --- one 250 ms display interval, only while
+    recording, cleared on every status change/unmount.
+  - `useLocationPermission` --- check/request/open settings/turn on
+    location; only the newest check may update state.
+  - `useGpsSignal` --- one `watchPositionAsync` per enabled period;
+    removed on cleanup, including when the subscription resolves after
+    the screen has closed. **Reads accuracy only; coordinates are not
+    stored or logged.**
+- **Tests**: `npm test` runs Node's built-in test runner on
+  `src/**/*.test.ts` (Node 24 runs TypeScript directly, so no Jest or
+  other framework was added). 12 tests cover the reducer and duration
+  formatting.
+
+**Files changed:**
+
+- New: `src/app/run.tsx`, `src/screens/RunScreen.tsx`,
+  `src/components/Button.tsx`, `src/features/run/runSession.ts`,
+  `src/features/run/runSession.test.ts`,
+  `src/features/run/useRunSession.ts`,
+  `src/features/location/useLocationPermission.ts`,
+  `src/features/location/useGpsSignal.ts`
+- Modified: `src/app/_layout.tsx` (run screen in root stack),
+  `src/app/(tabs)/_layout.tsx` (icons), `src/screens/HomeScreen.tsx`
+  (Start a run navigates), `src/screens/ActivitiesScreen.tsx` (empty-state
+  copy), `app.json` (plugins: `@react-native-vector-icons/ionicons`,
+  `expo-location` with background location explicitly off),
+  `package.json` / `package-lock.json`, `tsconfig.json`
+  (`allowImportingTsExtensions` for the test import)
+- `.claude/PROGRESS.md`, `.claude/ROADMAP.md`
+
+**Dependencies:**
+
+- Added `expo-location ~57.0.21` (SDK 57 version, included in Expo Go).
+- Added `@react-native-vector-icons/ionicons ^13.1.5` (works in Expo Go;
+  loads its font through Expo's font loader). **Not**
+  `@expo/vector-icons`: Expo's icon guide says it "will be deprecated
+  and is not recommended" and points to `@react-native-vector-icons`.
+- Added `react-dom 19.2.3` as a direct dependency. **Why:** installing
+  expo-router in Milestone 2 made npm auto-install `react-dom@19.3.0` as
+  a web-only peer. That needs React ≥ 19.3, but SDK 57 pins React 19.2.3,
+  so npm refused every later install (`ERESOLVE`). Pinning `react-dom`
+  to the SDK's expected 19.2.3 via `npx expo install react-dom` fixed it.
+  Harmless on Android (react-dom isn't loaded there), but it was already
+  in the Milestone 2 lockfile.
+- Added dev dependency `@types/node ~24.19.2` (types for `node:test`;
+  TypeScript 6 no longer auto-loads `@types/*`).
+- New npm scripts: `npm test`, `npm run typecheck`.
+
+**Commands run and results (automated, on Windows dev machine):**
+
+- `npx expo install expo-location @react-native-vector-icons/ionicons`
+  --- first attempt failed with npm `ERESOLVE` (react-dom, above);
+  succeeded after `npx expo install react-dom`. CLI auto-added the
+  Ionicons config plugin.
+- `npm test` --- 12 tests, 12 pass, 0 fail.
+- `npx tsc --noEmit` / `npm run typecheck` --- exit 0.
+- `npx expo-doctor` --- 20/21; same pre-existing `expo` 57.0.27 vs
+  ~57.0.28 patch mismatch only. Exit 1.
+- `npx expo export --platform android --clear` (temp dir) --- exit 0,
+  `Android Bundled 34518ms ... (1286 modules)`, Ionicons.ttf included.
+  Searched the bundle: `./run.tsx`, permission copy, discard prompt, GPS
+  strings, `footsteps-outline` present.
+- `CI=1 npx expo start --port 8099` + Android bundle fetch --- HTTP 200,
+  `Android Bundled 34846ms ... (1449 modules)`. Server stopped after.
+- Lint: still not configured.
+
+**Physical-device validation:** **None yet.** Unit tests cover the timer
+logic; permission flows, GPS, and dialogs can only be checked on the
+phone.
+
+**Founder testing needed (Android phone, Expo Go):**
+
+Restart Metro first: stop the running `expo start` (Ctrl+C), then
+`npx expo start --clear`.
+
+*Note for Expo Go:* the location permission belongs to **Expo Go**, not
+Prymal, so Android's dialog says "Expo Go", and "Open settings" opens
+Expo Go's app settings. To reset between tests: Settings → Apps →
+Expo Go → Permissions → Location.
+
+1. Tabs show icons; selected icon is filled and lime.
+2. Home → tap Start a run → run screen slides up.
+3. **First time / permission not granted:** Prymal's explainer appears
+   *before* any system dialog. Tap Allow location → Android dialog →
+   choose "While using the app" → screen shows the timer at `00:00`,
+   "Ready to start", and "Searching for GPS…" then "GPS good/weak ±N m".
+4. **Deny path:** reset permission, open run screen, Allow location →
+   "Don't allow". Explainer remains. Deny again → screen switches to
+   "Location is blocked" + Open settings. Open settings, allow location,
+   come back → run screen updates to Ready without restarting.
+5. **Location off:** turn off phone location (quick settings), open the
+   run screen → "Your phone's location is off" → Turn on location shows
+   Android's dialog; accept → Ready.
+6. **Run:** Start → badge "Recording", timer counts. Pause → "Paused",
+   timer freezes. Wait ~10 s → Resume → timer continues from where it
+   paused (paused time not counted). Repeat pause/resume a few times;
+   tapping fast must not break the timer.
+7. Finish → confirmation → Finish → "Run complete" with duration →
+   Done → Home.
+8. **Discard guard:** start a run, then press Android back (and,
+   separately, the X) → "Discard this run?" → Keep running keeps the
+   timer going; Discard returns Home. Before starting, X/back close with
+   no prompt.
+9. Keep the screen **on** during this test (see limitations).
+
+**Known issues / limitations:**
+
+- **Foreground only.** If the screen locks or the app is backgrounded,
+  GPS updates stop (Expo Go / foreground permission). The timer stays
+  correct because it's timestamp-based, so the elapsed time includes
+  time spent locked. Background tracking needs a development build and
+  the background permission; it's a Milestone 4+ decision.
+- No distance, pace, route, or saving yet (Milestones 4--5). Home stats
+  are still mock zeros.
+- Screen may dim/lock during a run; keep-awake not added yet.
+- "GPS signal weak" uses a fixed 20 m threshold; tune with real outdoor
+  data in Milestone 4.
+- `expo` patch mismatch unchanged; lint not configured.
+
+**Decisions made:**
+
+- Wall-clock timestamps (not tick counting) for elapsed time, so the
+  timer can't drift and survives JS throttling/backgrounding.
+- GPS watcher runs while the run screen is open (including before Start)
+  so the signal can lock on before running; it stops at Finish or when
+  leaving the screen.
+- Permission gate only blocks *starting*. If access changes mid-run, the
+  timer continues and the GPS row reports the problem, rather than
+  throwing the run away.
+- Node's built-in test runner instead of Jest/jest-expo: zero extra
+  framework for pure-logic tests. Revisit if component tests are needed.
+
+**Next single action:** Founder restarts with `npx expo start --clear`
+and runs the Milestone 3 checklist above on the Android phone.
+
+### Milestone 3 device validation --- 2026-10-14
+
+**Milestone / status:** Milestone 3 (+ tab icons) --- validated on the
+founder's Android phone (Expo Go).
+
+**Evidence:** Founder reported: "the icons are there, location
+permissions and other steps are also working fine." This is recorded as
+a pass for checklist items 1--8 above, based on that summary. Items
+weren't reported one by one.
+
+- [x] Tab icons visible.
+- [x] Permission explainer, allow / deny / blocked → settings, location
+  off flows.
+- [x] Start / pause / resume / finish, finish confirmation, discard
+  guard.
+- [ ] "Couldn't check location access" error state --- not testable by
+  hand; code path only.
+- [ ] Indoor-only so far: GPS signal readings not yet judged outdoors
+  (Milestone 4 needs real outdoor runs anyway).
+
+**Automated checks:** Unchanged since the implementation entry.
+
+**Next single action:** Start Milestone 4. First decision: whether
+Milestone 4 stays foreground-only in Expo Go or moves to a development
+build for background/locked-screen tracking.
+
 ## Required update template for future sessions
 
 Append a dated entry with: - **Milestone / status:** - **What
@@ -389,7 +593,11 @@ repository.
 
   Lint                                Not configured; not run
 
-  Unit tests                          Not configured; not run
+  Unit tests                          Pass --- `npm test`, 12/12
+                                      (2026-10-13, Node test runner)
+
+  Milestone 3 run flow on device      Pass --- founder confirmed
+                                      (2026-10-14)
 
   Android JS bundle (expo export)     Pass (2026-10-13)
 

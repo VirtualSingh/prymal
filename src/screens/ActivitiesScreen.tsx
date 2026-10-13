@@ -9,7 +9,7 @@ export function ActivitiesScreen() {
       <EmptyState
         decoration={<RouteGlyph />}
         title="No runs yet"
-        body="Runs you record will be saved here. Run tracking is coming soon."
+        body="Saved runs will appear here. Saving runs arrives in a later update."
       />
     </Screen>
   );
