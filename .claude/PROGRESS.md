@@ -7,9 +7,9 @@
 ## Current status
 
 **Overall phase:** Milestone 1 done and committed (`37ee4a5`).
-Milestone 2 (navigation + screen skeletons) implemented, passing
-automated checks, and tab navigation confirmed on the founder's Android
-phone. Android back behavior still to be explicitly confirmed.
+Milestone 2 (navigation + screen skeletons) done: automated checks pass,
+tabs and Android back behavior confirmed on the founder's Android phone,
+committed as `3d5777d`. Next: Milestone 3.
 
 **Founder-reported facts:** - \[x\] Created the Expo app and named it
 `prymal`. - \[x\] Connected and ran the app on an Android phone. - \[x\]
@@ -41,9 +41,9 @@ in small steps and test the basic application as soon as possible.
 
 **Milestone 2 --- Navigation and screen skeletons**
 
-Status: **Implemented; automated checks pass; tab navigation confirmed
-on the founder's Android phone (2026-10-13).** Android back → Home →
-exit not yet explicitly confirmed.
+Status: **Done.** Automated checks pass; tab navigation and Android back
+behavior confirmed on the founder's Android phone (2026-10-13).
+Committed as `3d5777d`.
 
 Desired behavior: tappable Home / Activities / Profile tabs; simple,
 consistent empty states for Activities and Profile; Android back returns
@@ -346,13 +346,15 @@ now" on their Android phone (Expo Go).
 
 - [x] App bundles and runs with Expo Router.
 - [x] Switching between Home / Activities / Profile works.
-- [ ] Android back from Activities/Profile → Home → exit --- not
-  explicitly confirmed.
+- [x] Android back from Activities/Profile → Home → exit --- founder
+  confirmed "the back is also working fine".
 
 **Automated checks:** Unchanged since the implementation entry.
 
-**Next single action:** Founder confirms Android back behavior; then
-start Milestone 3.
+**Commit:** `3d5777d` (local only, not pushed).
+
+**Next single action:** Start Milestone 3 (run flow and permission
+handling).
 
 ## Required update template for future sessions
 
@@ -382,9 +384,8 @@ repository.
   TypeScript check                    Pass (`npx tsc --noEmit`,
                                       2026-10-13, after Milestone 2)
 
-  Milestone 2 tabs/back on device     Tabs confirmed working
-                                      (2026-10-13); back behavior not
-                                      yet explicitly confirmed
+  Milestone 2 tabs/back on device     Pass --- tabs and Android back
+                                      confirmed by founder (2026-10-13)
 
   Lint                                Not configured; not run
 

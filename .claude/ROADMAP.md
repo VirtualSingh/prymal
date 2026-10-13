@@ -72,9 +72,9 @@ looks acceptable.
 -   [x] Create simple, consistent empty states for Activities and
     Profile. (Shared `EmptyState` component; reached on device via the
     tabs.)
--   [-] Confirm back behavior and Android layout. (`backBehavior=
-    "firstRoute"` set in code; tabs render on device. Android back →
-    Home → exit not yet explicitly confirmed by founder.)
+-   [x] Confirm back behavior and Android layout. (`backBehavior=
+    "firstRoute"`; founder confirmed Android back works on device,
+    2026-10-13.)
 -   [x] Keep screens deliberately simple; no auth or cloud backend
     required yet unless needed by existing architecture. (Verified by
     code inspection.)
@@ -205,6 +205,5 @@ are coded.
 
 ## Immediate next action
 
-Milestone 2 navigation works on the founder's Android phone. Founder:
-confirm Android back from Activities/Profile returns to Home, then
+Milestones 1 and 2 are validated on the founder's Android phone. Next:
 start Milestone 3 (run flow and permission handling).
