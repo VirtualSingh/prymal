@@ -65,13 +65,19 @@ looks acceptable.
 
 ## Milestone 2 --- Navigation and screen skeletons
 
--   [ ] Add or complete Home, Activities, and Profile navigation if it
-    is not already available.
--   [ ] Create simple, consistent empty states for Activities and
-    Profile.
--   [ ] Confirm back behavior and Android layout.
--   [ ] Keep screens deliberately simple; no auth or cloud backend
-    required yet unless needed by existing architecture.
+-   [x] Add or complete Home, Activities, and Profile navigation if it
+    is not already available. (Expo Router tabs under `src/app/`;
+    typecheck + Android bundle pass; founder confirmed navigation works
+    on Android phone, 2026-10-13.)
+-   [x] Create simple, consistent empty states for Activities and
+    Profile. (Shared `EmptyState` component; reached on device via the
+    tabs.)
+-   [-] Confirm back behavior and Android layout. (`backBehavior=
+    "firstRoute"` set in code; tabs render on device. Android back →
+    Home → exit not yet explicitly confirmed by founder.)
+-   [x] Keep screens deliberately simple; no auth or cloud backend
+    required yet unless needed by existing architecture. (Verified by
+    code inspection.)
 
 **Exit criteria:** The user can move between the basic app sections and
 return Home without errors.
@@ -199,6 +205,6 @@ are coded.
 
 ## Immediate next action
 
-Milestone 1 renders correctly on the founder's Android phone. Founder:
-confirm that the look is acceptable, commit the Milestone 1 work, then
-start Milestone 2 (navigation and screen skeletons).
+Milestone 2 navigation works on the founder's Android phone. Founder:
+confirm Android back from Activities/Profile returns to Home, then
+start Milestone 3 (run flow and permission handling).

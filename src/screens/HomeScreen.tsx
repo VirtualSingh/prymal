@@ -1,58 +1,51 @@
-import { ScrollView, StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { StyleSheet, Text, View } from "react-native";
 
-import { BottomNav } from "../components/BottomNav";
-import { formatDistanceKm, getHomeSummary } from "../data/homeSummary";
-import { colors, radii, spacing } from "../theme";
+import { EmptyState, RouteGlyph } from "@/components/EmptyState";
+import { Screen } from "@/components/Screen";
+import { formatDistanceKm, getHomeSummary } from "@/data/homeSummary";
+import { colors, radii, spacing } from "@/theme";
 
 export function HomeScreen() {
   const summary = getHomeSummary();
 
   return (
-    <View style={styles.root}>
-      <SafeAreaView edges={["top", "left", "right"]} style={styles.main}>
-        <ScrollView contentContainerStyle={styles.content}>
-          <View style={styles.header}>
-            <Text style={styles.wordmark} accessibilityRole="header">
-              prymal<Text style={styles.wordmarkDot}>.</Text>
-            </Text>
-            <Text style={styles.tagline}>YOUR RUNNING JOURNEY</Text>
-          </View>
+    <Screen>
+      <View style={styles.header}>
+        <Text style={styles.wordmark} accessibilityRole="header">
+          prymal<Text style={styles.wordmarkDot}>.</Text>
+        </Text>
+        <Text style={styles.tagline}>YOUR RUNNING JOURNEY</Text>
+      </View>
 
-          <View style={styles.welcome}>
-            <Text style={styles.eyebrow}>Welcome, runner</Text>
-            <Text style={styles.headline} accessibilityRole="header">
-              Ready to move?
-            </Text>
-            <Text style={styles.supporting}>Every run starts somewhere.</Text>
-          </View>
+      <View style={styles.welcome}>
+        <Text style={styles.eyebrow}>Welcome, runner</Text>
+        <Text style={styles.headline} accessibilityRole="header">
+          Ready to move?
+        </Text>
+        <Text style={styles.supporting}>Every run starts somewhere.</Text>
+      </View>
 
-          <StartRunCard />
+      <StartRunCard />
 
-          <View style={styles.statsRow}>
-            <StatCard
-              label="This week"
-              value={formatDistanceKm(summary.weeklyDistanceKm)}
-            />
-            <StatCard label="Total runs" value={String(summary.totalRuns)} />
-          </View>
+      <View style={styles.statsRow}>
+        <StatCard
+          label="This week"
+          value={formatDistanceKm(summary.weeklyDistanceKm)}
+        />
+        <StatCard label="Total runs" value={String(summary.totalRuns)} />
+      </View>
 
-          <Text style={styles.sectionHeading} accessibilityRole="header">
-            Recent activity
-          </Text>
-          {summary.recentRuns.length === 0 ? (
-            <View style={styles.emptyCard}>
-              <RouteGlyph />
-              <Text style={styles.emptyTitle}>Your first run starts here</Text>
-              <Text style={styles.emptyBody}>
-                Complete a run to see your progress.
-              </Text>
-            </View>
-          ) : null}
-        </ScrollView>
-      </SafeAreaView>
-      <BottomNav active="home" />
-    </View>
+      <Text style={styles.sectionHeading} accessibilityRole="header">
+        Recent activity
+      </Text>
+      {summary.recentRuns.length === 0 ? (
+        <EmptyState
+          decoration={<RouteGlyph />}
+          title="Your first run starts here"
+          body="Complete a run to see your progress."
+        />
+      ) : null}
+    </Screen>
   );
 }
 
@@ -96,33 +89,7 @@ function StatCard({ label, value }: { label: string; value: string }) {
   );
 }
 
-// A simple dotted path drawn with Views, so no icon library is needed.
-function RouteGlyph() {
-  return (
-    <View style={styles.routeGlyph} importantForAccessibility="no-hide-descendants">
-      <View style={[styles.routeDot, styles.routeDotStart]} />
-      <View style={styles.routeDash} />
-      <View style={styles.routeDash} />
-      <View style={styles.routeDash} />
-      <View style={[styles.routeDot, styles.routeDotEnd]} />
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  main: {
-    flex: 1,
-  },
-  content: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.xxl,
-  },
-
   header: {
     marginBottom: spacing.xl,
   },
@@ -254,51 +221,5 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "700",
     marginBottom: spacing.md,
-  },
-  emptyCard: {
-    alignItems: "center",
-    backgroundColor: colors.surface,
-    borderRadius: radii.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.borderSubtle,
-    paddingVertical: spacing.xxl,
-    paddingHorizontal: spacing.xl,
-  },
-  emptyTitle: {
-    color: colors.textPrimary,
-    fontSize: 16,
-    fontWeight: "700",
-    textAlign: "center",
-  },
-  emptyBody: {
-    color: colors.textSecondary,
-    fontSize: 14,
-    textAlign: "center",
-    marginTop: spacing.xs,
-  },
-
-  routeGlyph: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginBottom: spacing.lg,
-  },
-  routeDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-  },
-  routeDotStart: {
-    borderWidth: 2,
-    borderColor: colors.textSecondary,
-  },
-  routeDotEnd: {
-    backgroundColor: colors.accent,
-  },
-  routeDash: {
-    width: 10,
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: colors.borderSubtle,
   },
 });

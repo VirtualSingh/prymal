@@ -6,9 +6,10 @@
 
 ## Current status
 
-**Overall phase:** Milestone 1 (Home screen) implemented, passing
-automated checks, and rendering correctly on the founder's Android phone
-(Expo Go). Ready to commit, then begin Milestone 2.
+**Overall phase:** Milestone 1 done and committed (`37ee4a5`).
+Milestone 2 (navigation + screen skeletons) implemented, passing
+automated checks, and tab navigation confirmed on the founder's Android
+phone. Android back behavior still to be explicitly confirmed.
 
 **Founder-reported facts:** - \[x\] Created the Expo app and named it
 `prymal`. - \[x\] Connected and ran the app on an Android phone. - \[x\]
@@ -23,8 +24,8 @@ in small steps and test the basic application as soon as possible.
   React 19.2.3, TypeScript ~6.0.3 with `strict: true`.
 - [x] Template: Expo **blank TypeScript** template. Entry: `index.ts` →
   `registerRootComponent(App)` → `App.tsx`. No `src/app/` directory.
-- [x] Navigation: **none installed** (no Expo Router, no React
-  Navigation).
+- [x] Navigation: **none installed** at session start (no Expo Router,
+  no React Navigation). Expo Router added in Milestone 2 --- see below.
 - [x] Git: branch `main`, one commit (`5214368 Initial commit`). Working
   tree at session start was **not** clean — `App.tsx` had a staged
   founder edit ("Hello from Prymal!", red background). That staged
@@ -38,18 +39,19 @@ in small steps and test the basic application as soon as possible.
 
 ## Current milestone
 
-**Milestone 1 --- Runner-first Home screen**
+**Milestone 2 --- Navigation and screen skeletons**
 
-Status: **Implemented; automated checks pass; renders correctly on the
-founder's Android phone (2026-10-13).** Founder confirmed Start a run
-is inert on tap, as intended. Still unconfirmed: layout at max font
-size and in 3-button navigation mode.
+Status: **Implemented; automated checks pass; tab navigation confirmed
+on the founder's Android phone (2026-10-13).** Android back → Home →
+exit not yet explicitly confirmed.
 
-Desired behavior: - Prymal wordmark. - Friendly, motivating headline. -
-Prominent Start a Run action. - Weekly distance and total runs. - Recent
-activity empty state. - Home / Activities / Profile navigation
-presentation. - Dark surfaces and bright lime accent. - Mock data only;
-no fake GPS or fake recording.
+Desired behavior: tappable Home / Activities / Profile tabs; simple,
+consistent empty states for Activities and Profile; Android back returns
+to Home and then exits; no auth or backend.
+
+**Previous milestone:** Milestone 1 (Home screen) --- validated on the
+founder's Android phone and committed as `37ee4a5`. Unconfirmed minor
+checks: max font size, 3-button navigation mode.
 
 ## Session log
 
@@ -210,6 +212,148 @@ there's no run data.
 **Next single action:** Founder confirms the look is acceptable and
 commits the Milestone 1 work; then begin Milestone 2.
 
+**Outcome:** Committed as `37ee4a5` on 2026-10-13 (local only, not
+pushed).
+
+### Milestone 2 implementation --- 2026-10-13
+
+**Milestone / status:** Milestone 2 --- implemented, automated checks
+pass, physical-device validation **not yet done**.
+
+**What changed:**
+
+- Added **Expo Router** and switched the app entry to it. Routes now live
+  in `src/app/` as `AGENTS.md` requires:
+  - `src/app/_layout.tsx` --- root `Stack` (header hidden) holding the tab
+    group, a dark navigation theme built from `src/theme.ts`, and a light
+    status bar.
+  - `src/app/(tabs)/_layout.tsx` --- bottom tabs: Home, Activities,
+    Profile. Uses `Tabs` from `expo-router/js-tabs` (plain `Tabs` from
+    `expo-router` is marked deprecated in this version). Each tab's
+    "icon" is a short lime bar above the selected label, so no icon
+    library is needed and selection isn't shown by color alone.
+    `backBehavior="firstRoute"`: Android back from Activities/Profile
+    goes to Home, and back on Home exits.
+  - `src/app/(tabs)/index.tsx`, `activities.tsx`, `profile.tsx` --- thin
+    route files that render the screens in `src/screens/`.
+- New shared components: `Screen` (dark background, top safe area,
+  scrolling, optional title/subtitle) and `EmptyState` (card with
+  optional decoration; `RouteGlyph` moved here from Home).
+- New screens:
+  - Activities --- "Activities" / "Your run history", empty state "No runs
+    yet" / "Runs you record will be saved here. Run tracking is coming
+    soon."
+  - Profile --- "Profile" / "You and your settings", empty state "Profile
+    coming soon" / "Your runner profile and settings will live here."
+- Home: same content and look as Milestone 1, now built from `Screen` +
+  `EmptyState`. The static Milestone 1 bottom bar is replaced by the real
+  tab bar.
+- Removed: `App.tsx`, `index.ts` (old entry, unused under Expo Router),
+  `src/components/BottomNav.tsx` (replaced by real tabs).
+
+**Files changed:**
+
+- New: `src/app/_layout.tsx`, `src/app/(tabs)/_layout.tsx`,
+  `src/app/(tabs)/index.tsx`, `src/app/(tabs)/activities.tsx`,
+  `src/app/(tabs)/profile.tsx`, `src/components/Screen.tsx`,
+  `src/components/EmptyState.tsx`, `src/screens/ActivitiesScreen.tsx`,
+  `src/screens/ProfileScreen.tsx`
+- Modified: `src/screens/HomeScreen.tsx`, `package.json` (`main` →
+  `expo-router/entry`, new deps), `package-lock.json`, `app.json`
+  (`scheme: "prymal"`, `plugins: ["expo-router"]`), `tsconfig.json`
+  (`@/*` → `./src/*` path alias)
+- Deleted: `App.tsx`, `index.ts`, `src/components/BottomNav.tsx`
+- `.claude/PROGRESS.md`, `.claude/ROADMAP.md`
+
+**Commands run and results (automated, on Windows dev machine):**
+
+- `npx expo install expo-router react-native-screens expo-linking
+  expo-constants` --- installed `expo-router ~57.0.26`,
+  `react-native-screens ~4.26.0`, `expo-linking ~57.0.12`,
+  `expo-constants ~57.0.21`; CLI auto-added the `expo-router` config
+  plugin to `app.json`. npm audit warnings were reported again; not
+  investigated.
+- `npx tsc --noEmit` --- exit 0, no errors.
+- `npx expo-doctor` --- 20/21 passed. Same single pre-existing failure:
+  `expo` expected `~57.0.28`, found `57.0.27`. Exit 1.
+- `npx expo export --platform android --clear` (temp output dir) ---
+  exit 0, bundle `entry-*.hbc` 2.7 MB. Confirmed by searching the bundle
+  that all five route files (`_layout`, `(tabs)/_layout`, `index`,
+  `activities`, `profile`) and each screen's copy are included.
+- `CI=1 npx expo start --port 8099` --- logged `Using src/app as the root
+  directory for Expo Router`; manifest `launchAsset` →
+  `expo-router/entry.bundle`, fetched with HTTP 200 (~6.3 MB), `Android
+  Bundled 31824ms node_modules\expo-router\entry.js (1423 modules)`.
+  Server stopped afterwards.
+- Lint / unit tests: not configured; not run.
+
+**Physical-device validation:** **None yet.**
+
+**Founder testing needed (Android phone, Expo Go):**
+
+1. Run `npx expo start --clear` (`--clear` because the entry point
+   changed), then reload the app in Expo Go. No red error screen.
+2. Home looks the same as before, apart from the new tab bar.
+3. Tap Activities, then Profile. Each shows its title and empty-state
+   card. The lime bar and lime label move to the selected tab.
+4. On Activities or Profile, press Android back (gesture or button):
+   you should land on **Home**. Press back again on Home: the app should
+   exit/background.
+5. The tab bar sits above the gesture handle and the text is readable.
+6. Start a run still does nothing when tapped.
+
+**Known issues / limitations:**
+
+- `expo` one patch behind (unchanged, pre-existing).
+- No tab icons yet (indicator bar + labels only). An icon set can be
+  added later; `@expo/vector-icons` is available in this SDK if wanted.
+- `experiments.typedRoutes` from the Expo Router install guide was not
+  enabled, to avoid generated type files for three routes. It can be
+  turned on later.
+- Lint and tests still not configured.
+
+**Decisions made:**
+
+- **Expo Router over hand-rolled tab state:** `AGENTS.md` requires Expo
+  Router with routes under `src/app/`. Milestone 3 also needs stacked
+  screens (active run, summary), which a router gives us without
+  restructuring later. This changes the app entry, so it is a real
+  architecture change. It's reversible by restoring `index.ts`/`App.tsx`
+  from Git.
+- Root `Stack` wrapping `(tabs)` follows the Expo Router tabs guide, and
+  it is where the run screens will be pushed in Milestone 3.
+- Route files stay thin; screen code stays in `src/screens/` (per
+  `AGENTS.md`: keep non-route code outside `src/app/`).
+
+**Next single action:** Founder runs `npx expo start --clear` and checks
+the tabs and Android back behavior on the phone against the checklist
+above.
+
+### Milestone 2 device validation --- 2026-10-13
+
+**Issue hit first:** On the phone, bundling failed with `Invalid call at
+line 2: process.env.EXPO_ROUTER_APP_ROOT` in
+`expo-router/_ctx.android.js`. **Cause:** the founder's `expo start`
+server (PID 15352) was started at 23:08, before `expo-router` was
+installed at 23:21. That Metro process had already decided expo-router
+wasn't installed, so it never filled in the router root path. Not a code
+defect. **Fix:** stop the old server and run `npx expo start --clear`.
+**Lesson:** after adding a package that changes the entry point or the
+Babel setup, always restart Metro with `--clear`.
+
+**Result after restart:** Founder reported "the navigation is working
+now" on their Android phone (Expo Go).
+
+- [x] App bundles and runs with Expo Router.
+- [x] Switching between Home / Activities / Profile works.
+- [ ] Android back from Activities/Profile → Home → exit --- not
+  explicitly confirmed.
+
+**Automated checks:** Unchanged since the implementation entry.
+
+**Next single action:** Founder confirms Android back behavior; then
+start Milestone 3.
+
 ## Required update template for future sessions
 
 Append a dated entry with: - **Milestone / status:** - **What
@@ -236,7 +380,11 @@ repository.
                                       not yet done
 
   TypeScript check                    Pass (`npx tsc --noEmit`,
-                                      2026-10-13)
+                                      2026-10-13, after Milestone 2)
+
+  Milestone 2 tabs/back on device     Tabs confirmed working
+                                      (2026-10-13); back behavior not
+                                      yet explicitly confirmed
 
   Lint                                Not configured; not run
 
