@@ -1,5 +1,6 @@
 import { Ionicons } from "@react-native-vector-icons/ionicons";
 import { router, useNavigation } from "expo-router";
+import { useKeepAwake } from "expo-keep-awake";
 import { useEffect } from "react";
 import {
   ActivityIndicator,
@@ -21,18 +22,28 @@ import {
   useLocationPermission,
   type LocationAccess,
 } from "@/features/location/useLocationPermission";
-import { formatDuration, type RunStatus } from "@/features/run/runSession";
+import {
+  averagePaceMsPerKm,
+  formatDistanceKm,
+  formatDuration,
+  formatPace,
+} from "@/features/run/format";
+import type { RunStatus } from "@/features/run/runSession";
+import { routePointCount } from "@/features/run/track";
 import { useRunSession } from "@/features/run/useRunSession";
 import { colors, radii, spacing } from "@/theme";
 
 export function RunScreen() {
   const permission = useLocationPermission();
-  const { session, elapsedMs, start, pause, resume, finish } = useRunSession();
-  const { status } = session;
+  const { session, elapsedMs, start, pause, resume, finish, addSample } =
+    useRunSession();
+  const { status, track } = session;
   const inProgress = status === "recording" || status === "paused";
   const gps = useGpsSignal(
     permission.access.kind === "granted" && status !== "finished",
+    addSample,
   );
+  const pace = averagePaceMsPerKm(elapsedMs, track.distanceM);
 
   useDiscardGuard(inProgress);
 
@@ -49,6 +60,7 @@ export function RunScreen() {
 
   return (
     <SafeAreaView style={styles.root}>
+      {inProgress ? <KeepScreenOn /> : null}
       <View style={styles.topBar}>
         <Pressable
           onPress={() => router.back()}
@@ -74,7 +86,13 @@ export function RunScreen() {
           onRetry={permission.check}
         />
       ) : status === "finished" ? (
-        <FinishedPanel elapsedMs={elapsedMs} />
+        <FinishedPanel
+          elapsedMs={elapsedMs}
+          distanceM={track.distanceM}
+          pace={pace}
+          routePoints={routePointCount(track)}
+          ignoredReadings={track.ignoredCount}
+        />
       ) : (
         <>
           <View style={styles.body}>
@@ -88,10 +106,8 @@ export function RunScreen() {
               {formatDuration(elapsedMs)}
             </Text>
             <Text style={styles.timerLabel}>Duration</Text>
+            <RunStats distanceM={track.distanceM} pace={pace} />
             <GpsStatus signal={gps} />
-            <Text style={styles.note}>
-              Distance and pace arrive in the next update.
-            </Text>
           </View>
 
           <View style={styles.controls}>
@@ -121,6 +137,39 @@ export function RunScreen() {
         </>
       )}
     </SafeAreaView>
+  );
+}
+
+// Keeps the display on while mounted. GPS updates stop when the screen locks
+// (foreground-only tracking), so the run screen stays on during a run.
+function KeepScreenOn() {
+  useKeepAwake("prymal-run", { suppressDeactivateWarnings: true });
+  return null;
+}
+
+function RunStats({ distanceM, pace }: { distanceM: number; pace: number | null }) {
+  return (
+    <View style={styles.statsRow}>
+      <Stat label="Distance" value={formatDistanceKm(distanceM)} unit="km" />
+      <View style={styles.statsDivider} />
+      <Stat label="Avg pace" value={formatPace(pace)} unit="/km" />
+    </View>
+  );
+}
+
+function Stat({ label, value, unit }: { label: string; value: string; unit: string }) {
+  return (
+    <View
+      style={styles.stat}
+      accessible
+      accessibilityLabel={`${label} ${value === "--:--" ? "not available yet" : `${value} ${unit}`}`}
+    >
+      <Text style={styles.statValue} numberOfLines={1} adjustsFontSizeToFit>
+        {value}
+        <Text style={styles.statUnit}> {unit}</Text>
+      </Text>
+      <Text style={styles.statLabel}>{label}</Text>
+    </View>
   );
 }
 
@@ -294,7 +343,19 @@ function GpsStatus({ signal }: { signal: GpsSignal }) {
   );
 }
 
-function FinishedPanel({ elapsedMs }: { elapsedMs: number }) {
+function FinishedPanel({
+  elapsedMs,
+  distanceM,
+  pace,
+  routePoints,
+  ignoredReadings,
+}: {
+  elapsedMs: number;
+  distanceM: number;
+  pace: number | null;
+  routePoints: number;
+  ignoredReadings: number;
+}) {
   return (
     <>
       <View style={styles.body}>
@@ -306,6 +367,11 @@ function FinishedPanel({ elapsedMs }: { elapsedMs: number }) {
           {formatDuration(elapsedMs)}
         </Text>
         <Text style={styles.timerLabel}>Duration</Text>
+        <RunStats distanceM={distanceM} pace={pace} />
+        {/* Shown to help judge GPS quality while filtering is being tuned. */}
+        <Text style={styles.gpsSummary}>
+          GPS: {routePoints} route points · {ignoredReadings} readings ignored
+        </Text>
         <Text style={styles.note}>
           This run isn't saved yet. Saving runs arrives in a later update.
         </Text>
@@ -364,6 +430,51 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: "center",
     marginTop: spacing.xl,
+  },
+  gpsSummary: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    textAlign: "center",
+    marginTop: spacing.lg,
+  },
+
+  statsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "stretch",
+    marginTop: spacing.xl,
+    paddingVertical: spacing.lg,
+    backgroundColor: colors.surface,
+    borderRadius: radii.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.borderSubtle,
+  },
+  statsDivider: {
+    width: StyleSheet.hairlineWidth,
+    alignSelf: "stretch",
+    backgroundColor: colors.borderSubtle,
+  },
+  stat: {
+    flex: 1,
+    alignItems: "center",
+    paddingHorizontal: spacing.sm,
+  },
+  statValue: {
+    color: colors.textPrimary,
+    fontSize: 32,
+    fontWeight: "800",
+    fontVariant: ["tabular-nums"],
+  },
+  statUnit: {
+    color: colors.textSecondary,
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  statLabel: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    fontWeight: "600",
+    marginTop: spacing.xs,
   },
   controls: {
     gap: spacing.md,

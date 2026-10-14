@@ -6,7 +6,6 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  formatDuration,
   getElapsedMs,
   initialRunSession,
   runSessionReducer,
@@ -120,20 +119,58 @@ describe("runSessionReducer", () => {
   });
 });
 
-describe("formatDuration", () => {
-  it("formats under an hour as mm:ss", () => {
-    assert.equal(formatDuration(0), "00:00");
-    assert.equal(formatDuration(999), "00:00");
-    assert.equal(formatDuration(61_000), "01:01");
-    assert.equal(formatDuration(59 * 60_000 + 59_000), "59:59");
+describe("runSessionReducer GPS samples", () => {
+  // ~1 m of latitude ≈ 1 / 111_195 degrees.
+  const at = (metersNorth: number, timestamp: number) => ({
+    type: "sample" as const,
+    sample: {
+      latitude: 28.6 + metersNorth / 111_195,
+      longitude: 77.2,
+      accuracyM: 5,
+      timestamp,
+    },
+    receivedAt: timestamp,
   });
 
-  it("formats an hour or more as h:mm:ss", () => {
-    assert.equal(formatDuration(3_600_000), "1:00:00");
-    assert.equal(formatDuration(3_600_000 + 5 * 60_000 + 7_000), "1:05:07");
+  it("ignores samples unless recording", () => {
+    assert.equal(
+      runSessionReducer(initialRunSession, at(0, 1_000)),
+      initialRunSession,
+    );
+    const paused = apply([
+      { type: "start", at: 0 },
+      { type: "pause", at: 1_000 },
+    ]);
+    assert.equal(runSessionReducer(paused, at(50, 2_000)), paused);
   });
 
-  it("treats negative input as zero", () => {
-    assert.equal(formatDuration(-5_000), "00:00");
+  it("adds distance while recording", () => {
+    const s = apply([
+      { type: "start", at: 0 },
+      at(0, 1_000),
+      at(30, 11_000),
+      at(60, 21_000),
+    ]);
+    assert.ok(Math.abs(s.track.distanceM - 60) < 0.5, `got ${s.track.distanceM}`);
+  });
+
+  it("doesn't count ground covered while paused", () => {
+    const s = apply([
+      { type: "start", at: 0 },
+      at(0, 1_000),
+      at(30, 11_000),
+      { type: "pause", at: 12_000 },
+      { type: "resume", at: 100_000 },
+      at(500, 101_000), // walked 470 m while paused
+      at(530, 111_000),
+    ]);
+    assert.ok(Math.abs(s.track.distanceM - 60) < 0.5, `got ${s.track.distanceM}`);
+    assert.equal(s.track.segments.length, 2);
+  });
+
+  it("start clears any previous track", () => {
+    const s = apply([{ type: "start", at: 0 }]);
+    assert.equal(s.track.distanceM, 0);
+    assert.equal(s.track.segments.length, 1);
   });
 });

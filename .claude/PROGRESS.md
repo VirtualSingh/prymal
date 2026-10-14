@@ -11,7 +11,9 @@ Milestone 2 (navigation + screen skeletons) done: automated checks pass,
 tabs and Android back behavior confirmed on the founder's Android phone,
 committed as `3d5777d`. Milestone 3 (run flow + permission) and tab
 icons done: automated checks pass and founder confirmed them on the
-Android phone (2026-10-14). Next: Milestone 4.
+Android phone (2026-10-14), committed as `1d5413a`. Milestone 4
+(foreground GPS distance + pace) implemented and passing automated
+checks; awaiting outdoor testing on the founder's Android phone.
 
 **Founder-reported facts:** - \[x\] Created the Expo app and named it
 `prymal`. - \[x\] Connected and ran the app on an Android phone. - \[x\]
@@ -41,19 +43,18 @@ in small steps and test the basic application as soon as possible.
 
 ## Current milestone
 
-**Milestone 3 --- Run flow and permission handling** (+ tab icons)
+**Milestone 4 --- GPS route and metrics** (foreground-only, Option A)
 
-Status: **Done.** Automated checks pass; founder confirmed icons,
-permission flows, and the run steps on the Android phone (2026-10-14).
+Status: **Implemented; automated checks pass; outdoor testing on the
+Android phone pending.**
 
-Desired behavior: Start a run opens a run screen; location permission
-is explained before the system prompt; allowed / denied / blocked /
-location-off states are handled; start, pause, resume, finish with a
-correct timer; clear recording state; finishing and leaving mid-run ask
-for confirmation. No distance, route, or saving yet (Milestones 4--5).
+Desired behavior: while recording, GPS readings are filtered into route
+points; live distance and average pace; screen stays on during a run;
+summary shows distance, pace, and GPS point counts. No map (deferred),
+no background tracking, no saving yet.
 
-**Previous milestones:** Milestone 1 (`37ee4a5`) and Milestone 2
-(`3d5777d`) validated on the founder's Android phone. Unconfirmed minor
+**Previous milestones:** Milestones 1 (`37ee4a5`), 2 (`3d5777d`), and 3
+(`1d5413a`) validated on the founder's Android phone. Unconfirmed minor
 checks from Milestone 1: max font size, 3-button navigation mode.
 
 ## Session log
@@ -560,6 +561,140 @@ weren't reported one by one.
 Milestone 4 stays foreground-only in Expo Go or moves to a development
 build for background/locked-screen tracking.
 
+**Commit:** `1d5413a` (local only, not pushed).
+
+### Milestone 4 implementation --- 2026-10-14
+
+**Milestone / status:** Milestone 4 --- implemented, automated checks
+pass, **outdoor device testing not yet done**.
+
+**Decision recorded:** Founder replied "I like the option" to the
+A (foreground, screen on, Expo Go) vs B (background, development build)
+question. Interpreted as **A**, the recommended option; the founder was
+told how to correct this if they meant B.
+
+**What changed:**
+
+- **GPS readings → route → distance** (`src/features/run/track.ts`, pure):
+  readings are only used while recording. A reading is ignored if its
+  accuracy is missing or worse than 25 m, if it's more than 30 s old when
+  received (cached fixes), if it's a duplicate or out of order, or if it
+  implies faster than 12 m/s (~43 km/h). Movement smaller than
+  max(5 m, the readings' accuracy) is treated as jitter: the start point
+  is held, so standing still adds nothing, but slow real movement still
+  adds up. After 5 jump rejections in a row, the filter assumes the
+  previous point was the bad one and restarts from the current position
+  without adding the gap. Distance is the great-circle (haversine) sum
+  between accepted points.
+- **Pause/resume:** each resume starts a new route segment, so ground
+  covered while paused isn't counted.
+- **Raw vs derived data:** raw readings aren't stored. Accepted route
+  points (lat/lon/accuracy/time) are kept in memory for the current run
+  only; distance is derived from them. Nothing is persisted or logged.
+- **Pace:** average pace = elapsed recording time / distance. Shows
+  `--:--` until 100 m, and never Infinity/NaN or slower than 99:59/km.
+- **Run screen:** Distance (km, 2 decimals, truncated) and Avg pace
+  (/km) under the timer. The screen stays on while recording or paused
+  (`expo-keep-awake`, released at finish or on leaving). The finished
+  summary shows duration, distance, avg pace, and "GPS: N route points ·
+  M readings ignored" (to help judge GPS quality while tuning).
+- `formatDuration` moved to `src/features/run/format.ts` alongside the
+  new distance/pace formatters.
+
+**Files changed:**
+
+- New: `src/features/run/track.ts`, `src/features/run/track.test.ts`,
+  `src/features/run/format.ts`, `src/features/run/format.test.ts`
+- Modified: `src/features/run/runSession.ts` (track + `sample` action),
+  `src/features/run/runSession.test.ts`, `src/features/run/useRunSession.ts`
+  (`addSample`), `src/features/location/useGpsSignal.ts` (passes readings
+  on), `src/screens/RunScreen.tsx` (stats, keep-awake, summary),
+  `package.json` / `package-lock.json` (`expo-keep-awake ~57.0.2`)
+- `.claude/PROGRESS.md`, `.claude/ROADMAP.md`
+
+**Commands run and results (automated, on Windows dev machine):**
+
+- `npx expo install expo-keep-awake` --- installed `~57.0.2` (npm moved
+  the copy from inside `expo` to the top level).
+- `npm test` --- 36 tests, 36 pass. (First run: 34/36. Both failures
+  were mistakes in the test data, not the filter: one final reading
+  implied 13 m/s, which the filter correctly rejected, and one bound was
+  60 m vs a computed 60.00004 m. Tests fixed.)
+- `npx tsc --noEmit` --- exit 0.
+- `npx expo-doctor` --- 20/21; only the pre-existing `expo` 57.0.27 vs
+  ~57.0.28 mismatch.
+- `npx expo export --platform android --clear` (temp dir) --- exit 0,
+  `Android Bundled 77174ms ... (1291 modules)`. Confirms Metro resolves
+  the `./track.ts` import with its extension.
+- `CI=1 npx expo start --port 8099` + Android bundle fetch --- HTTP 200,
+  `Android Bundled 58633ms ... (1451 modules)`. Server stopped after.
+
+**Physical-device validation:** **None yet.** Unit tests use synthetic
+GPS tracks; real-world distance accuracy can only be judged outdoors.
+
+**Founder testing needed (outdoors, Android phone, Expo Go):**
+
+Restart Metro first: Ctrl+C, then `npx expo start --clear`.
+
+1. **Standing still test:** open the run screen outdoors, wait for "GPS
+   good", Start, stand still ~1 minute. Distance should stay at or very
+   near `0.00`; pace stays `--:--`.
+2. **Known-distance test:** walk or run a distance you know (a 400 m
+   track lap, or a route measured in Google Maps), ideally with another
+   running app recording at the same time. Note Prymal's distance vs the
+   reference.
+3. **Pause test:** during a run, Pause, walk ~100 m, Resume. That 100 m
+   must not be added.
+4. Confirm the screen doesn't turn off by itself while recording or
+   paused.
+5. After finishing, report from the summary: duration, distance, avg
+   pace, route points, readings ignored, and what the GPS row mostly
+   showed (good / weak ±N m).
+
+**Known issues / limitations:**
+
+- **Foreground only:** GPS stops if the screen is turned off manually or
+  the app is backgrounded; distance during that time is lost (the timer
+  is still correct). Keep the app open on screen.
+- Filter thresholds (25 m accuracy, 12 m/s, 5 m jitter, 30 s staleness)
+  are first guesses; tune them with outdoor results.
+- Jitter handling cuts tight corners slightly, so it may under-count a
+  little on twisty routes. This is deliberate (conservative).
+- Staleness check compares the GPS fix time to the phone clock. If the
+  phone clock is off by more than 30 s, readings would be ignored.
+  Android normally syncs the clock automatically.
+- No route map (deferred, see decision below). No saving (Milestone 5).
+- Screen-on running drains more battery.
+
+**Background tracking research (initial notes, not implemented):**
+
+- From the SDK 57 `expo-location` docs: "Foreground and background
+  services are not available in Expo Go for Android." A **development
+  build** is required.
+- Config plugin options: `isAndroidBackgroundLocationEnabled` (adds
+  `ACCESS_BACKGROUND_LOCATION`) and `isAndroidForegroundServiceEnabled`
+  (adds `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_LOCATION`; defaults on
+  when background is on). Both are currently set to `false` in
+  `app.json`.
+- Still to verify before implementing: the background-updates API
+  (likely `startLocationUpdatesAsync` with `expo-task-manager`),
+  notification requirements, Google Play's background-location policy
+  and review requirements, and EAS account/build setup.
+
+**Decisions made:**
+
+- Option A (see above).
+- **Route map deferred** --- `react-native-maps` works in Expo Go, but
+  Android builds need a Google Maps API key in a Google Cloud project
+  (Maps SDK for Android), restricted to the app's package name and
+  SHA-1. That's an account/billing setup decision for the founder.
+  Route points are already recorded for when a map is added.
+- Conservative filtering: under-count slightly rather than add phantom
+  distance.
+
+**Next single action:** Founder does the outdoor tests above and
+reports the summary numbers.
+
 ## Required update template for future sessions
 
 Append a dated entry with: - **Milestone / status:** - **What
@@ -593,8 +728,8 @@ repository.
 
   Lint                                Not configured; not run
 
-  Unit tests                          Pass --- `npm test`, 12/12
-                                      (2026-10-13, Node test runner)
+  Unit tests                          Pass --- `npm test`, 36/36
+                                      (2026-10-14, Node test runner)
 
   Milestone 3 run flow on device      Pass --- founder confirmed
                                       (2026-10-14)
@@ -606,7 +741,8 @@ repository.
 
   Production build (EAS/native)       Not run
 
-  GPS outdoor test                    Not started
+  GPS outdoor test                    Not started --- Milestone 4 built,
+                                      awaiting founder's outdoor runs
 
   Run persistence/restart test        Not started
   -----------------------------------------------------------------------

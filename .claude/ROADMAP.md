@@ -118,20 +118,36 @@ without the timer or location watcher duplicating or leaking.
 
 ## Milestone 4 --- GPS route and metrics
 
--   [ ] Integrate Expo Location using APIs compatible with the installed
-    Expo SDK.
--   [ ] Collect timestamped GPS samples with accuracy metadata.
--   [ ] Filter obviously poor or impossible samples conservatively.
--   [ ] Calculate distance using accepted samples; handle low accuracy
-    and zero distance.
--   [ ] Calculate pace without showing Infinity/NaN or misleading
-    values.
--   [ ] Add a route map only after verifying map library compatibility
-    and required setup.
+**Decision (founder, 2026-10-14):** Option A --- foreground-only in Expo
+Go, screen kept on during runs. Background tracking is a later,
+separate step.
+
+-   [x] Integrate Expo Location using APIs compatible with the installed
+    Expo SDK. (`watchPositionAsync` checked against the SDK 57 docs and
+    types; watcher confirmed on device in Milestone 3.)
+-   [-] Collect timestamped GPS samples with accuracy metadata.
+    (Implemented; outdoor check pending.)
+-   [-] Filter obviously poor or impossible samples conservatively.
+    (Accuracy > 25 m, stale > 30 s, duplicate/out-of-order, > 12 m/s
+    jumps, jitter below max(5 m, accuracy). Unit-tested; thresholds
+    need outdoor tuning.)
+-   [-] Calculate distance using accepted samples; handle low accuracy
+    and zero distance. (Unit-tested; outdoor check pending.)
+-   [-] Calculate pace without showing Infinity/NaN or misleading
+    values. (`--:--` until 100 m; unit-tested; device check pending.)
+-   [-] Keep the screen on while a run is in progress
+    (`expo-keep-awake`). Device check pending.
+-   [!] Add a route map only after verifying map library compatibility
+    and required setup. **Deferred, needs founder decision:**
+    `react-native-maps` works in Expo Go with no setup, but Android
+    development/production builds need a Google Maps API key restricted
+    to the app's package name and SHA-1 (Maps SDK for Android, Google
+    Cloud project). Route points are already recorded for a later map.
 -   [ ] Test outdoors on a real Android phone; document observed
     limitations.
--   [ ] Research development-build requirements before implementing
-    background/locked-screen tracking.
+-   [-] Research development-build requirements before implementing
+    background/locked-screen tracking. (Initial notes in `PROGRESS.md`
+    2026-10-14. Not implemented.)
 
 **Exit criteria:** An outdoor run produces plausible time, distance,
 pace, and route data, with clear behavior when GPS is weak.
@@ -222,6 +238,7 @@ are coded.
 
 ## Immediate next action
 
-Milestones 1--3 are validated on the founder's Android phone. Next:
-Milestone 4 (GPS route and metrics). Start by deciding foreground-only
-vs. background tracking, since background needs a development build.
+Milestone 4 (foreground GPS distance and pace) is implemented and passes
+automated checks. Founder: restart with `npx expo start --clear`, then
+do the outdoor test runs in `PROGRESS.md` and report the numbers. Do not
+start Milestone 5 until distance looks plausible outdoors.

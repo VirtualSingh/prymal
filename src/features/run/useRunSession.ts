@@ -5,6 +5,7 @@ import {
   initialRunSession,
   runSessionReducer,
 } from "./runSession";
+import type { GpsSample } from "./track";
 
 // Ties the pure reducer to React and a display clock. Exactly one interval
 // exists, and only while recording; it's cleared whenever status changes or
@@ -27,6 +28,12 @@ export function useRunSession() {
   const pause = useCallback(() => dispatch({ type: "pause", at: Date.now() }), []);
   const resume = useCallback(() => dispatch({ type: "resume", at: Date.now() }), []);
   const finish = useCallback(() => dispatch({ type: "finish", at: Date.now() }), []);
+  // Safe to call any time: the reducer ignores readings unless recording.
+  const addSample = useCallback(
+    (sample: GpsSample) =>
+      dispatch({ type: "sample", sample, receivedAt: Date.now() }),
+    [],
+  );
 
   return {
     session,
@@ -35,5 +42,6 @@ export function useRunSession() {
     pause,
     resume,
     finish,
+    addSample,
   };
 }
