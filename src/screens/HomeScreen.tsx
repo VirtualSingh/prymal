@@ -1,14 +1,28 @@
 import { Ionicons } from "@react-native-vector-icons/ionicons";
 import { router } from "expo-router";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
+import { Button } from "@/components/Button";
 import { EmptyState, RouteGlyph } from "@/components/EmptyState";
+import { RunListItem } from "@/components/RunListItem";
 import { Screen } from "@/components/Screen";
-import { formatDistanceKm, getHomeSummary } from "@/data/homeSummary";
+import { formatDistanceKmShort } from "@/features/run/format";
+import { summarizeRuns } from "@/features/runs/runRecord";
+import { useRuns } from "@/features/runs/useRuns";
 import { colors, radii, spacing } from "@/theme";
 
+const RECENT_COUNT = 3;
+
 export function HomeScreen() {
-  const summary = getHomeSummary();
+  const { state, retry } = useRuns();
+  const runs = state.kind === "ready" ? state.value : null;
+  const stats = runs ? summarizeRuns(runs, new Date()) : null;
 
   return (
     <Screen>
@@ -32,23 +46,70 @@ export function HomeScreen() {
       <View style={styles.statsRow}>
         <StatCard
           label="This week"
-          value={formatDistanceKm(summary.weeklyDistanceKm)}
+          value={stats ? `${formatDistanceKmShort(stats.weeklyDistanceM)} km` : "–"}
         />
-        <StatCard label="Total runs" value={String(summary.totalRuns)} />
+        <StatCard
+          label="Total runs"
+          value={stats ? String(stats.totalRuns) : "–"}
+        />
       </View>
 
-      <Text style={styles.sectionHeading} accessibilityRole="header">
-        Recent activity
-      </Text>
-      {summary.recentRuns.length === 0 ? (
-        <EmptyState
-          decoration={<RouteGlyph />}
-          title="Your first run starts here"
-          body="Complete a run to see your progress."
-        />
-      ) : null}
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionHeading} accessibilityRole="header">
+          Recent activity
+        </Text>
+        {runs && runs.length > RECENT_COUNT ? (
+          <Pressable
+            onPress={() => router.navigate("/activities")}
+            hitSlop={12}
+            accessibilityRole="link"
+          >
+            <Text style={styles.seeAll}>See all</Text>
+          </Pressable>
+        ) : null}
+      </View>
+      <RecentActivity state={state} onRetry={retry} />
     </Screen>
   );
+}
+
+function RecentActivity({
+  state,
+  onRetry,
+}: {
+  state: ReturnType<typeof useRuns>["state"];
+  onRetry: () => void;
+}) {
+  switch (state.kind) {
+    case "loading":
+      return <ActivityIndicator color={colors.accent} style={styles.loading} />;
+    case "error":
+      return (
+        <View style={styles.errorBox}>
+          <Text style={styles.errorText}>
+            Couldn't load your runs: {state.message}
+          </Text>
+          <Button label="Try again" variant="secondary" onPress={onRetry} />
+        </View>
+      );
+    case "ready":
+      if (state.value.length === 0) {
+        return (
+          <EmptyState
+            decoration={<RouteGlyph />}
+            title="Your first run starts here"
+            body="Complete a run to see your progress."
+          />
+        );
+      }
+      return (
+        <View style={styles.recentList}>
+          {state.value.slice(0, RECENT_COUNT).map((run) => (
+            <RunListItem key={run.id} run={run} />
+          ))}
+        </View>
+      );
+  }
 }
 
 // Opens the run screen. The run doesn't start until the user taps Start
@@ -202,10 +263,33 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
 
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: spacing.md,
+  },
   sectionHeading: {
     color: colors.textPrimary,
     fontSize: 18,
     fontWeight: "700",
-    marginBottom: spacing.md,
+  },
+  seeAll: {
+    color: colors.accent,
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  recentList: {
+    gap: spacing.md,
+  },
+  loading: {
+    paddingVertical: spacing.xl,
+  },
+  errorBox: {
+    gap: spacing.md,
+  },
+  errorText: {
+    color: colors.textSecondary,
+    fontSize: 14,
   },
 });

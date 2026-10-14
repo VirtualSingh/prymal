@@ -11,9 +11,11 @@ Milestone 2 (navigation + screen skeletons) done: automated checks pass,
 tabs and Android back behavior confirmed on the founder's Android phone,
 committed as `3d5777d`. Milestone 3 (run flow + permission) and tab
 icons done: automated checks pass and founder confirmed them on the
-Android phone (2026-10-14), committed as `1d5413a`. Milestone 4
-(foreground GPS distance + pace) implemented and passing automated
-checks; awaiting outdoor testing on the founder's Android phone.
+Android phone (2026-10-14), committed as `1d5413a`. Milestones 4
+(GPS distance + pace, `8709b86`), 5 (local saving + crash recovery), and
+6 (Activities list + run details) are implemented and pass automated
+checks but are **not device-tested**. At the founder's request, all
+device testing is deferred to `.claude/TESTING.md`.
 
 **Founder-reported facts:** - \[x\] Created the Expo app and named it
 `prymal`. - \[x\] Connected and ran the app on an Android phone. - \[x\]
@@ -43,15 +45,16 @@ in small steps and test the basic application as soon as possible.
 
 ## Current milestone
 
-**Milestone 4 --- GPS route and metrics** (foreground-only, Option A)
+**Milestones 4--6 --- GPS metrics, local saving, activity history**
 
-Status: **Implemented; automated checks pass; outdoor testing on the
-Android phone pending.**
+Status: **Implemented; automated checks pass; all device testing pending
+(see `TESTING.md`).** Milestones 5--6 were built before Milestone 4 was
+validated outdoors, at the founder's explicit request.
 
-Desired behavior: while recording, GPS readings are filtered into route
-points; live distance and average pace; screen stays on during a run;
-summary shows distance, pace, and GPS point counts. No map (deferred),
-no background tracking, no saving yet.
+Desired behavior: live distance and pace (M4); runs auto-saved on Finish
+and recovered if the app closes mid-run (M5); Home shows real stats and
+recent runs, Activities lists all runs, details screen with delete (M6).
+No map (deferred), no background tracking, no cloud sync.
 
 **Previous milestones:** Milestones 1 (`37ee4a5`), 2 (`3d5777d`), and 3
 (`1d5413a`) validated on the founder's Android phone. Unconfirmed minor
@@ -695,6 +698,133 @@ Restart Metro first: Ctrl+C, then `npx expo start --clear`.
 **Next single action:** Founder does the outdoor tests above and
 reports the summary numbers.
 
+**Outcome:** Committed as `8709b86` on 2026-10-14 with outdoor testing
+still pending. The founder chose to defer all device testing (next
+entry).
+
+### Milestones 5--6 implementation --- 2026-10-14
+
+**Milestone / status:** Milestones 5 and 6 --- implemented, automated
+checks pass, **device testing not done**. The founder said: "defer all
+the real testing to a file, I'll test everything tomorrow morning, you
+need to start building more stuff." The checklist is in
+`.claude/TESTING.md`. Milestone 4 is also still untested outdoors.
+
+**What changed:**
+
+- **Local database** (`expo-sqlite`, included in Expo Go), file
+  `prymal.db` on the device. Schema v1 (`PRAGMA user_version`):
+  - `runs`: derived summary (id, start/finish time, moving duration,
+    distance, route point count, ignored readings, recovered flag).
+  - `run_points`: accepted GPS route points per run (segment, seq, lat,
+    lon, accuracy, time). Deleted with the run via `ON DELETE CASCADE`.
+    Raw readings are still not stored.
+  - `active_run`: at most one checkpoint of the run in progress.
+  The shape mirrors the planned Supabase `runs`/`run_points`. Run ids are
+  `run_<time>_<random>` strings.
+- **Auto-save on Finish:** after the Finish confirmation the run is saved
+  in one transaction. Summary shows Saving… → "Saved to Activities", with
+  **View run**. If saving fails: an error message, **Try saving again**,
+  and the run is still recovered on the next launch.
+- **Crash recovery:** while recording/paused, the session is
+  checkpointed on every status change, every 15 s, and when the app
+  leaves the foreground. On app start, a leftover checkpoint is saved as
+  a run finished at the checkpoint time (time after the crash isn't
+  counted), tagged **Recovered**. Discarding a run clears its checkpoint.
+  All writes go through one ordered queue, so a late checkpoint can't
+  resurrect a run that was already saved.
+- **Home:** real "This week" distance (Monday 00:00 local time onward) and
+  "Total runs"; Recent activity shows the 3 newest runs, plus **See all**
+  when there are more. Loading and error states included. The mock data
+  module `src/data/homeSummary.ts` was removed.
+- **Activities:** `FlatList` of all runs, newest first (date, distance,
+  duration, pace, Recovered tag), with loading / empty / error states.
+- **Run details** (`/activity/[id]`): date, distance, duration, pace,
+  route points, readings ignored, recovered note, **Delete run** (with
+  confirmation).
+- **Root layout:** `SQLiteProvider` runs migrations + recovery before
+  screens render. A dark `ErrorBoundary` with Try again replaces a blank
+  screen if the database fails to open.
+
+**Files changed:**
+
+- New: `src/features/runs/runRecord.ts` (+ `.test.ts`),
+  `src/features/runs/runStore.ts` (+ `.test.ts`),
+  `src/features/runs/useRunPersistence.ts`, `src/features/runs/useRuns.ts`,
+  `src/components/RunListItem.tsx`, `src/screens/RunDetailScreen.tsx`,
+  `src/app/activity/[id].tsx`, `.claude/TESTING.md`
+- Modified: `src/app/_layout.tsx`, `src/screens/HomeScreen.tsx`,
+  `src/screens/ActivitiesScreen.tsx`, `src/screens/RunScreen.tsx`,
+  `src/components/Screen.tsx` (exports `ScreenHeader`, `screenStyles`),
+  `src/features/run/format.ts` (+ test), `app.json` (`expo-sqlite`
+  plugin), `package.json`, `package-lock.json`
+- Deleted: `src/data/homeSummary.ts`
+- `.claude/PROGRESS.md`, `.claude/ROADMAP.md`
+
+**Commands run and results (automated, on Windows dev machine):**
+
+- `npx expo install expo-sqlite` --- `~57.0.4`; CLI added its config
+  plugin.
+- `npm test` --- **62 tests, 62 pass**. This includes 10 storage tests
+  that run `runStore.ts`'s real SQL against a real SQLite database
+  (Node's built-in `node:sqlite`, SQLite 3.53.4) through a small adapter.
+  They cover: schema created once / re-run safe; save + list; retry
+  doesn't duplicate; newest first; delete cascades points; save clears
+  the checkpoint; **a failed save rolls back and keeps the checkpoint**;
+  recovery of an in-progress run at checkpoint time; recovery of a
+  finished-but-unsaved run; a corrupt checkpoint is discarded. Not
+  covered: expo-sqlite's own native behavior on the phone.
+- `npx tsc --noEmit` --- exit 0.
+- `npx expo-doctor` --- 20/21; only the pre-existing `expo` patch
+  mismatch.
+- `npx expo export --platform android --clear` (temp dir) --- exit 0,
+  `Android Bundled 82018ms ... (1328 modules)`; bundle contains the
+  details route, the schema SQL, and the new screen copy.
+- `CI=1 npx expo start --port 8099` + Android bundle fetch --- HTTP 200,
+  `Android Bundled 20839ms ... (1487 modules)`. Server stopped.
+
+**Physical-device validation:** **None.** See `TESTING.md`.
+
+**Known issues / limitations:**
+
+- Recovery loses up to ~15 s at the end of a crashed run (the checkpoint
+  interval). Finishing normally loses nothing.
+- If the database fails to open, the whole app shows the error screen
+  (every screen depends on it).
+- Data lives only on this phone (inside Expo Go while testing). No
+  export or backup until cloud sync (Milestone 7).
+- Dates use the phone's locale via `Intl` (Hermes). Formatting wasn't
+  unit-tested because it depends on locale.
+- `SQLiteProvider` renders nothing for the few milliseconds while the DB
+  opens.
+- Still no route map; still foreground-only GPS.
+
+**Decisions made:**
+
+- Auto-save on Finish (instead of a separate Save button) so a run can't
+  be lost by tapping away; deletion is available on the details screen.
+- Recover interrupted runs automatically on launch, rather than asking.
+  It's simpler, never blocks the user, and a recovered run is clearly
+  tagged and can be deleted.
+- `expo-sqlite` over AsyncStorage/key-value: runs + route points are
+  relational, need atomic multi-row saves, and mirror the future
+  Supabase schema.
+- Lists reload on screen focus instead of using a shared cache, so there
+  is no second source of truth to keep in sync.
+
+**Maps pricing (founder question, researched 2026-10-14):** Google's
+pricing page (updated 2026-10-08) lists the native **Maps SDK** SKU with
+an **"Unlimited"** free monthly cap and no per-1,000 price. The Android
+usage page says billing must be enabled on the Cloud project and an API
+key is required. So native Android map loads cost $0, but a card/billing
+account is needed. The separate "Dynamic Maps" SKU (10,000 free, then
+$7/1,000) applies to other map types; which features would trigger it
+(e.g. Map IDs / cloud styling) wasn't confirmed, so avoid those. In Expo
+Go, maps work with no key at all.
+
+**Next single action:** Founder works through `.claude/TESTING.md`
+(indoor sections first, then outdoor) and sends back the results table.
+
 ## Required update template for future sessions
 
 Append a dated entry with: - **Milestone / status:** - **What
@@ -728,8 +858,13 @@ repository.
 
   Lint                                Not configured; not run
 
-  Unit tests                          Pass --- `npm test`, 36/36
-                                      (2026-10-14, Node test runner)
+  Unit tests                          Pass --- `npm test`, 62/62
+                                      (2026-10-14, Node test runner,
+                                      incl. 10 real-SQLite storage
+                                      tests)
+
+  Milestones 5--6 on device           Not yet tested --- see
+                                      `TESTING.md`
 
   Milestone 3 run flow on device      Pass --- founder confirmed
                                       (2026-10-14)
@@ -744,5 +879,7 @@ repository.
   GPS outdoor test                    Not started --- Milestone 4 built,
                                       awaiting founder's outdoor runs
 
-  Run persistence/restart test        Not started
+  Run persistence/restart test        Built; automated real-SQLite
+                                      tests pass; device test pending
+                                      (`TESTING.md` §1--2)
   -----------------------------------------------------------------------

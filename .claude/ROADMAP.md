@@ -142,7 +142,12 @@ separate step.
     `react-native-maps` works in Expo Go with no setup, but Android
     development/production builds need a Google Maps API key restricted
     to the app's package name and SHA-1 (Maps SDK for Android, Google
-    Cloud project). Route points are already recorded for a later map.
+    Cloud project). Route points are already recorded (and now saved in
+    `run_points`) for a later map. **Pricing checked 2026-10-14** on
+    Google's pricing page: the native "Maps SDK" SKU has an "Unlimited"
+    free cap and no listed price, but the Cloud project must have billing
+    enabled (card on file). Avoid Map IDs/cloud styling and Street View,
+    which may fall under charged SKUs.
 -   [ ] Test outdoors on a real Android phone; document observed
     limitations.
 -   [-] Research development-build requirements before implementing
@@ -154,24 +159,43 @@ pace, and route data, with clear behavior when GPS is weak.
 
 ## Milestone 5 --- Summary and local durability
 
--   [ ] Show a useful summary after finishing.
--   [ ] Store completed runs locally first if that is the simplest
-    reliable route for the chosen architecture.
--   [ ] Restore saved activities after app restart.
--   [ ] Handle interrupted app sessions and incomplete runs
-    thoughtfully.
--   [ ] Test no network / weak network where relevant.
+**Note:** Built 2026-10-14 before Milestone 4's outdoor validation, at
+the founder's request ("defer all the real testing… start building more
+stuff"). All device tests are collected in `TESTING.md`.
+
+-   [-] Show a useful summary after finishing. (Duration, distance, pace,
+    GPS counts, save status. Device check pending.)
+-   [-] Store completed runs locally first if that is the simplest
+    reliable route for the chosen architecture. (`expo-sqlite`: `runs`,
+    `run_points`; auto-save on Finish. Real-SQLite tests pass; device
+    check pending.)
+-   [-] Restore saved activities after app restart. (Device check
+    pending.)
+-   [-] Handle interrupted app sessions and incomplete runs
+    thoughtfully. (Checkpoint every 15 s / on pause / on background;
+    recovered on next launch at checkpoint time, tagged "Recovered".
+    Tested against real SQLite; device check pending.)
+-   [x] Test no network / weak network where relevant. (Not relevant
+    yet: all storage is local and no network is used.)
 
 **Exit criteria:** The founder can finish a run, see the summary,
 close/reopen the app, and find the saved run.
 
 ## Milestone 6 --- Activity history
 
--   [ ] Show a list of saved runs.
--   [ ] Include date, distance, duration, and average pace.
--   [ ] Add a run detail screen if needed.
--   [ ] Provide loading, empty, and error states.
--   [ ] Add focused tests for formatting and calculations.
+-   [-] Show a list of saved runs. (Activities tab, newest first; Home
+    shows 3 most recent + real weekly distance / total runs. Device check
+    pending.)
+-   [-] Include date, distance, duration, and average pace. (Device
+    check pending.)
+-   [-] Add a run detail screen if needed. (`/activity/[id]` with delete.
+    Device check pending.)
+-   [-] Provide loading, empty, and error states. (Implemented for Home,
+    Activities, and details; error states can't easily be triggered by
+    hand.)
+-   [x] Add focused tests for formatting and calculations. (62 tests:
+    formatting, pace, track filter, session reducer, run records, weekly
+    stats, and storage against real SQLite.)
 
 **Exit criteria:** Previous runs are easy to find and their values are
 consistent with the run summary.
@@ -238,7 +262,8 @@ are coded.
 
 ## Immediate next action
 
-Milestone 4 (foreground GPS distance and pace) is implemented and passes
-automated checks. Founder: restart with `npx expo start --clear`, then
-do the outdoor test runs in `PROGRESS.md` and report the numbers. Do not
-start Milestone 5 until distance looks plausible outdoors.
+Milestones 4--6 are implemented and pass automated checks but are **not
+device-tested**. Founder: work through `TESTING.md` (indoor saving and
+recovery first, then outdoor GPS) and send back the results table.
+Milestone 7 (Supabase) needs founder decisions first: whether sign-in is
+needed, and a Supabase project.

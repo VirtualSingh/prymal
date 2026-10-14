@@ -16,6 +16,27 @@ export function formatDistanceKm(meters: number): string {
   return (Math.floor(km * 100) / 100).toFixed(2);
 }
 
+/** Kilometres with one decimal, truncated, e.g. "3.2". For compact stats. */
+export function formatDistanceKmShort(meters: number): string {
+  const km = Math.max(0, meters) / 1000;
+  return (Math.floor(km * 10) / 10).toFixed(1);
+}
+
+/** e.g. "Tue, 14 Oct · 7:42 am", in the phone's locale and time zone. */
+export function formatRunDateTime(epochMs: number): string {
+  const d = new Date(epochMs);
+  const date = d.toLocaleDateString(undefined, {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
+  const time = d.toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  return `${date} · ${time}`;
+}
+
 /**
  * Below this distance, average pace is too noisy to be meaningful (a few
  * metres of GPS error would show absurd paces), so it isn't shown.

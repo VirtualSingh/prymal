@@ -5,6 +5,7 @@ import { describe, it } from "node:test";
 import {
   averagePaceMsPerKm,
   formatDistanceKm,
+  formatDistanceKmShort,
   formatDuration,
   formatPace,
   MIN_DISTANCE_FOR_PACE_M,
@@ -34,6 +35,14 @@ describe("formatDistanceKm", () => {
     assert.equal(formatDistanceKm(999), "0.99");
     assert.equal(formatDistanceKm(3_276), "3.27");
     assert.equal(formatDistanceKm(-10), "0.00");
+  });
+});
+
+describe("formatDistanceKmShort", () => {
+  it("shows one decimal, truncated", () => {
+    assert.equal(formatDistanceKmShort(0), "0.0");
+    assert.equal(formatDistanceKmShort(999), "0.9");
+    assert.equal(formatDistanceKmShort(12_345), "12.3");
   });
 });
 

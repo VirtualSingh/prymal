@@ -14,23 +14,34 @@ type ScreenProps = {
 // The tab bar handles the bottom inset, so only top/left/right are applied.
 export function Screen({ title, subtitle, children }: ScreenProps) {
   return (
-    <SafeAreaView edges={["top", "left", "right"]} style={styles.root}>
-      <ScrollView contentContainerStyle={styles.content}>
-        {title ? (
-          <View style={styles.header}>
-            <Text style={styles.title} accessibilityRole="header">
-              {title}
-            </Text>
-            {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
-          </View>
-        ) : null}
+    <SafeAreaView edges={["top", "left", "right"]} style={screenStyles.root}>
+      <ScrollView contentContainerStyle={screenStyles.content}>
+        {title ? <ScreenHeader title={title} subtitle={subtitle} /> : null}
         {children}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
+export function ScreenHeader({
+  title,
+  subtitle,
+}: {
+  title: string;
+  subtitle?: string;
+}) {
+  return (
+    <View style={styles.header}>
+      <Text style={styles.title} accessibilityRole="header">
+        {title}
+      </Text>
+      {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+    </View>
+  );
+}
+
+/** Root/content styles, for screens that need their own scroll container. */
+export const screenStyles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: colors.background,
@@ -40,6 +51,9 @@ const styles = StyleSheet.create({
     paddingTop: spacing.lg,
     paddingBottom: spacing.xxl,
   },
+});
+
+const styles = StyleSheet.create({
   header: {
     marginBottom: spacing.xl,
   },

@@ -31,6 +31,10 @@ import {
 import type { RunStatus } from "@/features/run/runSession";
 import { routePointCount } from "@/features/run/track";
 import { useRunSession } from "@/features/run/useRunSession";
+import {
+  useRunPersistence,
+  type SaveState,
+} from "@/features/runs/useRunPersistence";
 import { colors, radii, spacing } from "@/theme";
 
 export function RunScreen() {
@@ -44,8 +48,9 @@ export function RunScreen() {
     addSample,
   );
   const pace = averagePaceMsPerKm(elapsedMs, track.distanceM);
+  const persistence = useRunPersistence(session);
 
-  useDiscardGuard(inProgress);
+  useDiscardGuard(inProgress, persistence.discard);
 
   const confirmFinish = () =>
     Alert.alert("Finish run?", "You won't be able to resume it.", [
@@ -92,6 +97,8 @@ export function RunScreen() {
           pace={pace}
           routePoints={routePointCount(track)}
           ignoredReadings={track.ignoredCount}
+          saveState={persistence.saveState}
+          onRetrySave={persistence.retrySave}
         />
       ) : (
         <>
@@ -175,7 +182,7 @@ function Stat({ label, value, unit }: { label: string; value: string; unit: stri
 
 // While a run is in progress, intercept every way of leaving the screen
 // (close button, Android back, gestures) and ask before discarding it.
-function useDiscardGuard(active: boolean) {
+function useDiscardGuard(active: boolean, onDiscard: () => void) {
   const navigation = useNavigation();
 
   useEffect(() => {
@@ -190,12 +197,15 @@ function useDiscardGuard(active: boolean) {
           {
             text: "Discard",
             style: "destructive",
-            onPress: () => navigation.dispatch(event.data.action),
+            onPress: () => {
+              onDiscard();
+              navigation.dispatch(event.data.action);
+            },
           },
         ],
       );
     });
-  }, [navigation, active]);
+  }, [navigation, active, onDiscard]);
 }
 
 function PermissionGate({
@@ -349,12 +359,16 @@ function FinishedPanel({
   pace,
   routePoints,
   ignoredReadings,
+  saveState,
+  onRetrySave,
 }: {
   elapsedMs: number;
   distanceM: number;
   pace: number | null;
   routePoints: number;
   ignoredReadings: number;
+  saveState: SaveState;
+  onRetrySave: () => void;
 }) {
   return (
     <>
@@ -372,15 +386,56 @@ function FinishedPanel({
         <Text style={styles.gpsSummary}>
           GPS: {routePoints} route points · {ignoredReadings} readings ignored
         </Text>
-        <Text style={styles.note}>
-          This run isn't saved yet. Saving runs arrives in a later update.
-        </Text>
+        <SaveStatus saveState={saveState} />
       </View>
       <View style={styles.controls}>
-        <Button label="Done" onPress={() => router.back()} />
+        {saveState.kind === "error" ? (
+          <Button label="Try saving again" onPress={onRetrySave} />
+        ) : null}
+        {saveState.kind === "saved" ? (
+          <Button
+            label="View run"
+            variant="secondary"
+            onPress={() => router.replace(`/activity/${saveState.id}`)}
+          />
+        ) : null}
+        <Button
+          label="Done"
+          variant={saveState.kind === "error" ? "secondary" : "primary"}
+          onPress={() => router.back()}
+        />
       </View>
     </>
   );
+}
+
+function SaveStatus({ saveState }: { saveState: SaveState }) {
+  switch (saveState.kind) {
+    case "notSaved":
+    case "saving":
+      return (
+        <View style={styles.saveRow}>
+          <ActivityIndicator color={colors.textSecondary} size="small" />
+          <Text style={styles.note}>Saving…</Text>
+        </View>
+      );
+    case "saved":
+      return (
+        <View style={styles.saveRow} accessible accessibilityLiveRegion="polite">
+          <Ionicons name="checkmark" size={16} color={colors.accent} />
+          <Text style={[styles.note, styles.saved]}>Saved to Activities</Text>
+        </View>
+      );
+    case "error":
+      // The checkpoint survives a failed save, so the run is recovered on
+      // the next app launch even if the user leaves now.
+      return (
+        <Text style={[styles.note, styles.saveError]} accessibilityLiveRegion="polite">
+          Couldn't save this run ({saveState.message}). Try again, or it will
+          be recovered next time you open Prymal.
+        </Text>
+      );
+  }
 }
 
 const styles = StyleSheet.create({
@@ -430,6 +485,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: "center",
     marginTop: spacing.xl,
+  },
+  saveRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.sm,
+    marginTop: spacing.xl,
+  },
+  saved: {
+    color: colors.accent,
+    fontWeight: "700",
+    marginTop: 0,
+  },
+  saveError: {
+    color: colors.textPrimary,
   },
   gpsSummary: {
     color: colors.textSecondary,
