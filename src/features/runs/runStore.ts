@@ -172,9 +172,46 @@ export async function getRun(
   return row ? toRunRecord(row) : null;
 }
 
+type PointRow = {
+  segment: number;
+  seq: number;
+  latitude: number;
+  longitude: number;
+  accuracy_m: number;
+  recorded_at: number;
+};
+
+/** A run's saved route points, in recording order. */
+export async function getRunPoints(
+  db: SQLiteDatabase,
+  runId: string,
+): Promise<RunPointRecord[]> {
+  const rows = await db.getAllAsync<PointRow>(
+    `SELECT segment, seq, latitude, longitude, accuracy_m, recorded_at
+     FROM run_points WHERE run_id = ? ORDER BY segment, seq`,
+    [runId],
+  );
+  return rows.map((r) => ({
+    segment: r.segment,
+    seq: r.seq,
+    latitude: r.latitude,
+    longitude: r.longitude,
+    accuracyM: r.accuracy_m,
+    timestamp: r.recorded_at,
+  }));
+}
+
 export async function deleteRun(db: SQLiteDatabase, id: string): Promise<void> {
   // run_points rows go with it (ON DELETE CASCADE).
   await db.runAsync("DELETE FROM runs WHERE id = ?", [id]);
+}
+
+/** Delete every saved run, its route points, and any in-progress checkpoint. */
+export async function deleteAllRuns(db: SQLiteDatabase): Promise<void> {
+  await db.withExclusiveTransactionAsync(async (txn) => {
+    await txn.runAsync("DELETE FROM runs", []);
+    await txn.runAsync("DELETE FROM active_run", []);
+  });
 }
 
 export async function writeCheckpoint(

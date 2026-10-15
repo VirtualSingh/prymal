@@ -13,9 +13,10 @@ committed as `3d5777d`. Milestone 3 (run flow + permission) and tab
 icons done: automated checks pass and founder confirmed them on the
 Android phone (2026-10-14), committed as `1d5413a`. Milestones 4
 (GPS distance + pace, `8709b86`), 5 (local saving + crash recovery), and
-6 (Activities list + run details) are implemented and pass automated
-checks but are **not device-tested**. At the founder's request, all
-device testing is deferred to `.claude/TESTING.md`.
+6 (Activities list + run details, `c808723`), plus a route map, per-km
+splits, and a Profile screen (2026-10-15), are implemented and pass
+automated checks but are **not device-tested**. At the founder's
+request, all device testing is deferred to `.claude/TESTING.md`.
 
 **Founder-reported facts:** - \[x\] Created the Expo app and named it
 `prymal`. - \[x\] Connected and ran the app on an Android phone. - \[x\]
@@ -825,6 +826,101 @@ Go, maps work with no key at all.
 **Next single action:** Founder works through `.claude/TESTING.md`
 (indoor sections first, then outdoor) and sends back the results table.
 
+**Commit:** `c808723` (pushed by the founder before the next session).
+
+### Route map, splits, Profile --- 2026-10-15
+
+**Milestone / status:** Milestone 4's deferred route map + extras;
+implemented, automated checks pass, **device testing not done**.
+Founder: "implement further features, I'll test everything today."
+Interpreted as: build what needs no founder accounts or decisions. Cloud
+sync (Milestone 7) stays parked because it needs a Supabase project and
+a sign-in decision.
+
+**What changed:**
+
+- **Route map** on run details (`src/components/RouteMap.tsx`):
+  `react-native-maps 1.27.2` via `npx expo install` (SDK 57 version,
+  included in Expo Go; no API key needed there). It's a static preview:
+  gestures off so it doesn't fight page scrolling; dark map via
+  `userInterfaceStyle="dark"` (supported on Android per the library's
+  types). That avoids custom map styling / Map IDs, which may fall under
+  a charged SKU. Lime line per recording segment (paused gaps show as
+  breaks), start and finish dots, framed to fit the route. Fewer than 2
+  points shows "No route to show".
+- **Per-km splits** on run details (`src/features/runs/routeGeometry.ts`):
+  from saved route points. Kilometre boundaries are interpolated between
+  points; paused gaps between segments are excluded; a final partial
+  split is shown if ≥ 50 m. Split distances sum to the run's distance.
+  Split times are moving time between GPS points, so they can total a
+  little less than the run duration (noted on screen).
+- **Profile screen** (replaces the "coming soon" skeleton): lifetime stats
+  (runs, total distance, total time, longest run, fastest average pace
+  among runs ≥ 1 km); a "Your data" card (stored only on this phone,
+  Prymal doesn't upload or share it, location only while the run screen
+  is open, maps download Google map images for the area); **Delete all
+  runs** with a confirmation that names the count; app version.
+- Storage: `getRunPoints`, `deleteAllRuns` (one transaction: runs →
+  cascaded points, plus the checkpoint).
+
+**Files changed:**
+
+- New: `src/features/runs/routeGeometry.ts` (+ test),
+  `src/components/RouteMap.tsx`
+- Modified: `src/screens/RunDetailScreen.tsx` (map + splits),
+  `src/screens/ProfileScreen.tsx` (rewritten),
+  `src/features/runs/runRecord.ts` (+ test: `lifetimeStats`),
+  `src/features/runs/runStore.ts` (+ test), `src/features/runs/useRuns.ts`
+  (`useRunPoints`), `package.json`, `package-lock.json`
+- `.claude/TESTING.md`, `.claude/PROGRESS.md`, `.claude/ROADMAP.md`
+
+**Commands run and results (automated, on Windows dev machine):**
+
+- `npx expo install react-native-maps` --- `1.27.2`. No config plugin was
+  added (none is needed for Expo Go).
+- `npm test` --- **75 tests, 75 pass**. First run: 70/71. The failure
+  was in the test, not the code: it expected exactly 100,000 ms, but
+  test points built from an approximate metres-per-degree constant give
+  ~99,99x ms. Changed it to a tolerance.
+- `npx tsc --noEmit` --- exit 0.
+- `npx expo-doctor` --- 20/21; the `expo` patch mismatch now reads
+  expected `~57.0.29`, found `57.0.27` (Expo shipped another patch;
+  still not upgraded inside a feature change).
+- `npx expo export --platform android --clear` (temp dir) --- exit 0,
+  `Android Bundled 111904ms ... (1365 modules)`; bundle contains the map
+  native component (`AIRMap`) and the new screen copy.
+- `CI=1 npx expo start --port 8099` + Android bundle fetch --- HTTP 200,
+  `Android Bundled 57077ms ... (1524 modules)`. Server stopped.
+
+**Physical-device validation:** **None.** See `TESTING.md` §3b and
+"Route map and splits".
+
+**Known issues / limitations:**
+
+- **Real builds need a Google Maps API key** (Maps SDK for Android,
+  billing-enabled Cloud project, key restricted to package + SHA-1).
+  Without it, a development/store build would show a blank map. Expo Go
+  is unaffected.
+- `userInterfaceStyle="dark"` on the map is from the library's typings,
+  not yet seen on the device. If the map renders light, it's cosmetic.
+- The map is a static preview (no pan/zoom); a full-screen interactive
+  map can come later.
+- Map tiles are fetched from Google when the details screen opens
+  (stated in the Profile privacy card).
+
+**Decisions made:**
+
+- Static, gesture-free map preview: no scroll conflicts, cheaper to
+  render.
+- No custom JSON map styling or Map ID, to stay on the free native Maps
+  SDK SKU.
+- Profile has no name/avatar: there are no accounts yet, and inventing
+  local identity now would conflict with Milestone 7's auth decision.
+
+**Next single action:** Founder works through `.claude/TESTING.md`
+(now including Profile, route map, and splits) and sends back the
+results table.
+
 ## Required update template for future sessions
 
 Append a dated entry with: - **Milestone / status:** - **What
@@ -858,9 +954,9 @@ repository.
 
   Lint                                Not configured; not run
 
-  Unit tests                          Pass --- `npm test`, 62/62
-                                      (2026-10-14, Node test runner,
-                                      incl. 10 real-SQLite storage
+  Unit tests                          Pass --- `npm test`, 75/75
+                                      (2026-10-15, Node test runner,
+                                      incl. 12 real-SQLite storage
                                       tests)
 
   Milestones 5--6 on device           Not yet tested --- see

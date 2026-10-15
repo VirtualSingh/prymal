@@ -16,7 +16,9 @@ import {
   type RunSession,
 } from "../run/runSession.ts";
 import {
+  deleteAllRuns,
   deleteRun,
+  getRunPoints,
   initDatabase,
   listRuns,
   recoverInterruptedRun,
@@ -206,6 +208,44 @@ describe("runStore (real SQLite)", () => {
     const runs = await listRuns(db);
     assert.equal(runs.length, 1);
     assert.equal(runs[0].durationMs, 30_000);
+  });
+
+  it("returns a run's points in recording order", async () => {
+    const { db } = openTestDb();
+    await initDatabase(db);
+    const s = apply([
+      { type: "start", at: 0 },
+      sampleAt(0, 1_000),
+      sampleAt(30, 11_000),
+      { type: "pause", at: 12_000 },
+      { type: "resume", at: 20_000 },
+      sampleAt(100, 21_000),
+      { type: "finish", at: 30_000 },
+    ]);
+    await saveFinishedSession(db, s, "run_a");
+    const points = await getRunPoints(db, "run_a");
+    assert.deepEqual(
+      points.map((p) => [p.segment, p.seq, p.timestamp]),
+      [
+        [0, 0, 1_000],
+        [0, 1, 11_000],
+        [1, 0, 21_000],
+      ],
+    );
+    assert.equal(points[0].accuracyM, 5);
+    assert.deepEqual(await getRunPoints(db, "missing"), []);
+  });
+
+  it("delete all removes runs, points, and the checkpoint", async () => {
+    const { db, count } = openTestDb();
+    await initDatabase(db);
+    await saveFinishedSession(db, finishedRun(), "run_a");
+    await saveFinishedSession(db, finishedRun(), "run_b");
+    await writeCheckpoint(db, apply([{ type: "start", at: 0 }]), 1_000);
+    await deleteAllRuns(db);
+    assert.equal(count("SELECT COUNT(*) AS n FROM runs"), 0);
+    assert.equal(count("SELECT COUNT(*) AS n FROM run_points"), 0);
+    assert.equal(count("SELECT COUNT(*) AS n FROM active_run"), 0);
   });
 
   it("discards a corrupt checkpoint instead of failing start-up", async () => {

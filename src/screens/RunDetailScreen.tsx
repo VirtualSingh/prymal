@@ -1,7 +1,7 @@
 import { Ionicons } from "@react-native-vector-icons/ionicons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Button } from "@/components/Button";
+import { RouteMap } from "@/components/RouteMap";
 import {
   averagePaceMsPerKm,
   formatDistanceKm,
@@ -21,9 +22,10 @@ import {
   formatPace,
   formatRunDateTime,
 } from "@/features/run/format";
+import { computeSplits, type Split } from "@/features/runs/routeGeometry";
 import type { RunRecord } from "@/features/runs/runRecord";
 import { deleteRun } from "@/features/runs/runStore";
-import { useRun } from "@/features/runs/useRuns";
+import { useRun, useRunPoints } from "@/features/runs/useRuns";
 import { colors, radii, spacing } from "@/theme";
 
 export function RunDetailScreen() {
@@ -76,6 +78,11 @@ function RunDetails({ run }: { run: RunRecord }) {
   const db = useSQLiteContext();
   const [deleting, setDeleting] = useState(false);
   const pace = formatPace(averagePaceMsPerKm(run.durationMs, run.distanceM));
+  const { state: points } = useRunPoints(run.id);
+  const splits = useMemo(
+    () => (points.kind === "ready" ? computeSplits(points.value) : []),
+    [points],
+  );
 
   const confirmDelete = () =>
     Alert.alert("Delete this run?", "This can't be undone.", [
@@ -109,12 +116,30 @@ function RunDetails({ run }: { run: RunRecord }) {
         <Text style={styles.distanceUnit}> km</Text>
       </Text>
 
+      <View style={styles.mapSection}>
+        {points.kind === "ready" ? (
+          <RouteMap points={points.value} />
+        ) : points.kind === "loading" ? (
+          <View style={styles.mapPlaceholder}>
+            <ActivityIndicator color={colors.accent} />
+          </View>
+        ) : (
+          <View style={styles.mapPlaceholder}>
+            <Text style={styles.message}>
+              Couldn't load the route: {points.message}
+            </Text>
+          </View>
+        )}
+      </View>
+
       <View style={styles.grid}>
         <Stat label="Duration" value={formatDuration(run.durationMs)} />
         <Stat label="Avg pace" value={pace === "--:--" ? pace : `${pace} /km`} />
         <Stat label="Route points" value={String(run.routePointCount)} />
         <Stat label="Readings ignored" value={String(run.ignoredReadingCount)} />
       </View>
+
+      {splits.length > 0 ? <SplitsTable splits={splits} /> : null}
 
       {run.recovered ? (
         <View style={styles.notice}>
@@ -143,6 +168,53 @@ function RunDetails({ run }: { run: RunRecord }) {
         )}
       </View>
     </ScrollView>
+  );
+}
+
+// Splits use moving time between GPS points, so they can add up to slightly
+// less than the run's duration (e.g. time before the first GPS fix).
+function SplitsTable({ splits }: { splits: Split[] }) {
+  return (
+    <View style={styles.splits}>
+      <Text style={styles.sectionHeading} accessibilityRole="header">
+        Splits
+      </Text>
+      <View style={[styles.splitRow, styles.splitHeaderRow]}>
+        <Text style={[styles.splitCell, styles.splitHeader]}>Km</Text>
+        <Text style={[styles.splitCell, styles.splitHeader, styles.right]}>
+          Pace
+        </Text>
+        <Text style={[styles.splitCell, styles.splitHeader, styles.right]}>
+          Time
+        </Text>
+      </View>
+      {splits.map((split) => {
+        const label = split.partial
+          ? `${formatDistanceKm(split.distanceM)} km`
+          : String(split.index);
+        const splitPace = formatPace(
+          averagePaceMsPerKm(split.durationMs, split.distanceM),
+        );
+        const time = formatDuration(split.durationMs);
+        return (
+          <View
+            key={split.index}
+            style={styles.splitRow}
+            accessible
+            accessibilityLabel={`${
+              split.partial ? `Last ${label}` : `Kilometre ${label}`
+            }: pace ${splitPace} per kilometre, time ${time}`}
+          >
+            <Text style={styles.splitCell}>{label}</Text>
+            <Text style={[styles.splitCell, styles.right]}>{splitPace} /km</Text>
+            <Text style={[styles.splitCell, styles.right]}>{time}</Text>
+          </View>
+        );
+      })}
+      <Text style={styles.splitNote}>
+        From GPS points. Paused time is excluded.
+      </Text>
+    </View>
   );
 }
 
@@ -214,11 +286,59 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "700",
   },
+  mapSection: {
+    marginTop: spacing.xl,
+  },
+  mapPlaceholder: {
+    height: 220,
+    borderRadius: radii.md,
+    backgroundColor: colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: spacing.lg,
+  },
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: spacing.md,
     marginTop: spacing.xl,
+  },
+  splits: {
+    marginTop: spacing.xl,
+  },
+  sectionHeading: {
+    color: colors.textPrimary,
+    fontSize: 18,
+    fontWeight: "700",
+    marginBottom: spacing.md,
+  },
+  splitRow: {
+    flexDirection: "row",
+    paddingVertical: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.borderSubtle,
+  },
+  splitHeaderRow: {
+    paddingTop: 0,
+  },
+  splitCell: {
+    flex: 1,
+    color: colors.textPrimary,
+    fontSize: 16,
+    fontVariant: ["tabular-nums"],
+  },
+  splitHeader: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  right: {
+    textAlign: "right",
+  },
+  splitNote: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    marginTop: spacing.sm,
   },
   stat: {
     flexGrow: 1,

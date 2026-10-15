@@ -11,6 +11,7 @@ import {
 import {
   buildRunRecord,
   finishRecoveredSession,
+  lifetimeStats,
   newRunId,
   parseSessionSnapshot,
   startOfWeek,
@@ -158,6 +159,31 @@ describe("summarizeRuns", () => {
       weeklyDistanceM: 0,
       totalRuns: 0,
     });
+  });
+});
+
+describe("lifetimeStats", () => {
+  it("is all zero / null with no runs", () => {
+    assert.deepEqual(lifetimeStats([]), {
+      runCount: 0,
+      totalDistanceM: 0,
+      totalDurationMs: 0,
+      longestRunM: 0,
+      fastestPaceMsPerKm: null,
+    });
+  });
+
+  it("totals runs and picks the longest and fastest", () => {
+    const stats = lifetimeStats([
+      { distanceM: 5_000, durationMs: 30 * 60_000 }, // 6:00/km
+      { distanceM: 10_000, durationMs: 55 * 60_000 }, // 5:30/km
+      { distanceM: 500, durationMs: 60_000 }, // 2:00/km but too short
+    ]);
+    assert.equal(stats.runCount, 3);
+    assert.equal(stats.totalDistanceM, 15_500);
+    assert.equal(stats.totalDurationMs, 86 * 60_000);
+    assert.equal(stats.longestRunM, 10_000);
+    assert.equal(stats.fastestPaceMsPerKm, 5.5 * 60_000);
   });
 });
 

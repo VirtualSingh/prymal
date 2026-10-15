@@ -9,7 +9,8 @@
 
 - [ ] In the terminal running Expo, press **Ctrl+C**, then run
       `npx expo start --clear`. New native modules were added
-      (`expo-sqlite`, `expo-keep-awake`), so an old server will break.
+      (`expo-sqlite`, `expo-keep-awake`, `react-native-maps`), so an old
+      server will break.
 - [ ] Open the app in Expo Go. No red error screen.
 - [ ] Location permission is owned by **Expo Go** while testing, so
       Android dialogs say "Expo Go". Reset it via Settings → Apps → Expo Go
@@ -54,6 +55,18 @@
       and the run is gone. Home's Total runs drops by one.
 - [ ] Cancel on the delete confirmation keeps the run.
 
+## 3b. Profile (indoors is fine) --- added 2026-10-15
+
+- [ ] Profile tab shows Runs, Total distance, Total time, Longest run,
+      Fastest pace (1 km+). Numbers match your saved runs. Fastest pace
+      shows `--:--` until you have a run of at least 1 km.
+- [ ] "Your data" card is readable.
+- [ ] **Delete all runs** → confirmation names the number of runs →
+      Cancel keeps everything; Delete all empties Profile, Home (Total
+      runs 0), and Activities.
+- [ ] With no runs, the Delete all button is hidden.
+- [ ] App version shows at the bottom ("Prymal 1.0.0").
+
 ## 4. Outdoor GPS --- Milestone 4 (needs going outside)
 
 Keep the app open and the screen on for all of these.
@@ -67,6 +80,20 @@ Keep the app open and the screen on for all of these.
 - [ ] Screen doesn't turn off by itself while recording or paused.
 - [ ] Avg pace appears after ~100 m and looks plausible.
 - [ ] The finished run is saved and shows the same numbers in Activities.
+
+### Route map and splits (after an outdoor run) --- added 2026-10-15
+
+- [ ] Open the outdoor run's details: a **dark map** shows your route as a
+      lime line, a white-ringed dot at the start and a lime dot at the
+      finish. The whole route fits in the frame.
+- [ ] The map doesn't move when you scroll the page (it's a preview).
+- [ ] With the pause test run: the route has a **gap** where you walked
+      while paused (separate line pieces).
+- [ ] **Splits** list one row per full km (pace + time) plus a last
+      partial row (e.g. "0.43 km"). Paces look plausible. Runs shorter
+      than 50 m show no splits.
+- [ ] An indoor run with no GPS points shows "No route to show" instead
+      of a broken map.
 
 ## 5. Earlier leftovers (low priority)
 

@@ -137,8 +137,11 @@ separate step.
     values. (`--:--` until 100 m; unit-tested; device check pending.)
 -   [-] Keep the screen on while a run is in progress
     (`expo-keep-awake`). Device check pending.
--   [!] Add a route map only after verifying map library compatibility
-    and required setup. **Deferred, needs founder decision:**
+-   [-] Add a route map only after verifying map library compatibility
+    and required setup. **Built for Expo Go 2026-10-15** (founder: "implement
+    further features"): `react-native-maps 1.27.2` (SDK 57 version), dark
+    static preview on run details, plus per-km splits. Device check
+    pending. **Still needs the founder before any real build:**
     `react-native-maps` works in Expo Go with no setup, but Android
     development/production builds need a Google Maps API key restricted
     to the app's package name and SHA-1 (Maps SDK for Android, Google
@@ -228,7 +231,10 @@ retrieved across app sessions/devices as intended.
     real runs.
 -   [ ] Handle accidental finish, empty runs, duplicate saves, and app
     restart.
--   [ ] Add privacy explanation and route visibility decisions.
+-   [-] Add privacy explanation and route visibility decisions. (Profile
+    "Your data" card states local-only storage, foreground-only location,
+    and that maps load Google tiles; Delete all runs added 2026-10-15.
+    Route sharing/visibility decisions wait for cloud sync.)
 -   [ ] Fix high-impact defects before expanding scope.
 
 **Exit criteria:** Core run recording and review are stable enough for
@@ -262,8 +268,8 @@ are coded.
 
 ## Immediate next action
 
-Milestones 4--6 are implemented and pass automated checks but are **not
-device-tested**. Founder: work through `TESTING.md` (indoor saving and
-recovery first, then outdoor GPS) and send back the results table.
-Milestone 7 (Supabase) needs founder decisions first: whether sign-in is
-needed, and a Supabase project.
+Milestones 4--6, the route map, splits, and Profile are implemented and
+pass automated checks but are **not device-tested**. Founder: work
+through `TESTING.md` (indoor sections first, then outdoor) and send back
+the results table. Milestone 7 (Supabase) needs founder decisions first:
+whether sign-in is needed, and a Supabase project.

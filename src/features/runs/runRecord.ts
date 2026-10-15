@@ -139,6 +139,45 @@ export type RunStats = {
   totalRuns: number;
 };
 
+/** Runs shorter than this don't count for "fastest pace". */
+export const MIN_DISTANCE_FOR_BEST_PACE_M = 1000;
+
+export type LifetimeStats = {
+  runCount: number;
+  totalDistanceM: number;
+  totalDurationMs: number;
+  longestRunM: number;
+  /** Best average pace among runs of at least 1 km; null if none. */
+  fastestPaceMsPerKm: number | null;
+};
+
+export function lifetimeStats(
+  runs: Pick<RunRecord, "distanceM" | "durationMs">[],
+): LifetimeStats {
+  let totalDistanceM = 0;
+  let totalDurationMs = 0;
+  let longestRunM = 0;
+  let fastestPaceMsPerKm: number | null = null;
+  for (const run of runs) {
+    totalDistanceM += run.distanceM;
+    totalDurationMs += run.durationMs;
+    longestRunM = Math.max(longestRunM, run.distanceM);
+    if (run.distanceM >= MIN_DISTANCE_FOR_BEST_PACE_M && run.durationMs > 0) {
+      const pace = run.durationMs / (run.distanceM / 1000);
+      if (fastestPaceMsPerKm === null || pace < fastestPaceMsPerKm) {
+        fastestPaceMsPerKm = pace;
+      }
+    }
+  }
+  return {
+    runCount: runs.length,
+    totalDistanceM,
+    totalDurationMs,
+    longestRunM,
+    fastestPaceMsPerKm,
+  };
+}
+
 export function summarizeRuns(
   runs: Pick<RunRecord, "startedAt" | "distanceM">[],
   now: Date,

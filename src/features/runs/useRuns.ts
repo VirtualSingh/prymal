@@ -2,8 +2,7 @@ import { useFocusEffect } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import { useCallback, useRef, useState } from "react";
 
-import type { RunRecord } from "./runRecord";
-import { getRun, listRuns } from "./runStore";
+import { getRun, getRunPoints, listRuns } from "./runStore";
 
 export type Loadable<T> =
   | { kind: "loading" }
@@ -53,5 +52,12 @@ export function useRuns() {
 export function useRun(id: string) {
   const db = useSQLiteContext();
   const query = useCallback(() => getRun(db, id), [db, id]);
+  return useFocusedQuery(query);
+}
+
+/** A saved run's route points, in recording order. */
+export function useRunPoints(id: string) {
+  const db = useSQLiteContext();
+  const query = useCallback(() => getRunPoints(db, id), [db, id]);
   return useFocusedQuery(query);
 }
