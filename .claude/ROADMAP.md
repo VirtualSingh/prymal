@@ -141,7 +141,10 @@ separate step.
     and required setup. **Built for Expo Go 2026-10-15** (founder: "implement
     further features"): `react-native-maps 1.27.2` (SDK 57 version), dark
     static preview on run details, plus per-km splits. Device check
-    pending. **Still needs the founder before any real build:**
+    pending. Google Cloud project "prymal" with billing created by the
+    founder 2026-10-15 (next steps in `PROGRESS.md`: enable Maps SDK for
+    Android, restricted key, budget alert, package name + SHA-1).
+    **Still needs the founder before any real build:**
     `react-native-maps` works in Expo Go with no setup, but Android
     development/production builds need a Google Maps API key restricted
     to the app's package name and SHA-1 (Maps SDK for Android, Google

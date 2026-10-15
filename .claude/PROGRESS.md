@@ -921,6 +921,48 @@ a sign-in decision.
 (now including Profile, route map, and splits) and sends back the
 results table.
 
+**Commit:** `ee53c97` (local, not pushed).
+
+### Google Cloud setup for maps --- 2026-10-15
+
+**Founder-reported:** created a Google Cloud project named **prymal** and
+enabled billing. Not verified by Claude: there's no console access, and
+none is needed.
+
+**Not needed for Expo Go testing.** Maps already work there with no key.
+This setup is only for development/store builds.
+
+**Remaining steps** (from Google's API-security page, updated 2026-10-13,
+and Expo's react-native-maps and env-variable docs):
+
+1. Founder: enable **Maps SDK for Android** in the project.
+2. Founder: create an API key on the **Google Maps Platform Credentials**
+   page. Immediately set **API restrictions → Maps SDK for Android only**.
+3. Founder: add a **budget alert** on the billing account (Google's page
+   warns: "You are financially responsible for charges caused by abuse
+   of unrestricted API keys").
+4. **Blocked on decisions:** the key's **application restriction**
+   needs the Android **package name** (not set in `app.json` yet;
+   permanent once published on Play) and the app's **SHA-1 signing
+   fingerprint**. The fingerprint only exists once a signing key exists,
+   i.e. after setting up EAS (Expo account + project) for a development
+   build, or later from Play Console app signing for store builds.
+5. Claude, once 4 is decided: wire the key into the build via the
+   `react-native-maps` config plugin (`androidGoogleMapsApiKey`), read
+   from an environment variable. Never commit it to git. Use `.env.local`
+   locally (already gitignored via `.env*.local`) and an EAS environment
+   variable for cloud builds.
+
+**Security notes:** a Maps key in an Android app ships inside the app,
+so it isn't truly secret. Its protection is the restrictions (package +
+SHA-1 + API). Still keep it out of git and out of chat. Don't enable
+other paid Google APIs (Places, Directions, Street View) in this project
+without discussing cost first.
+
+**Next single action:** Founder enables Maps SDK for Android, creates an
+API-restricted key, and sets a budget alert, then decides the Android
+package name.
+
 ## Required update template for future sessions
 
 Append a dated entry with: - **Milestone / status:** - **What
