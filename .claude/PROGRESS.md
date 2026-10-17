@@ -1192,8 +1192,19 @@ the EAS keystore SHA-1. Advised: API restriction → "Restrict key" → only
 **Maps SDK for Android** (the key had 32 APIs selected by default, i.e.
 everything enabled in the project); optionally disable unused Maps
 Platform APIs project-wide. Later, for Play Store releases, add the Play
-App Signing SHA-1 as a second entry. Still to do: the EAS variable
-`GOOGLE_MAPS_ANDROID_API_KEY` (Sensitive).
+App Signing SHA-1 as a second entry.
+
+**Update (founder-reported, same day):** disabled all project APIs except
+Maps SDK for Android, and created the EAS variable. Verified by Claude
+without printing the value: `eas env:list` → `GOOGLE_MAPS_ANDROID_API_KEY`,
+visibility SENSITIVE, scope PROJECT, environments production, preview,
+development. `eas config --profile development` → "loaded from the
+'development' environment on EAS: GOOGLE_MAPS_ANDROID_API_KEY", the
+react-native-maps plugin has a key, `extra.mapsConfigured: true`. **The
+installed build #2 predates the key, so its map still shows the
+placeholder; the next build includes it.** If anything else in Google
+Cloud stops working because of the disabled APIs, re-enable that one
+API; Prymal itself only needs Maps SDK for Android.
 
 **Next single action:** Founder installs the development build and runs
 `TESTING.md` §6 (background recording).
