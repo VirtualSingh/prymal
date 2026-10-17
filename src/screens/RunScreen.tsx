@@ -1,11 +1,12 @@
 import { Ionicons } from "@react-native-vector-icons/ionicons";
 import { router, useNavigation } from "expo-router";
 import { useKeepAwake } from "expo-keep-awake";
-import { useEffect } from "react";
+import { useEffect, useRef, type RefObject } from "react";
 import {
   ActivityIndicator,
   Alert,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -13,12 +14,12 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Button } from "@/components/Button";
-import {
-  useGpsSignal,
-  WEAK_ACCURACY_M,
-  type GpsSignal,
-} from "@/features/location/useGpsSignal";
 import { backgroundTrackingSupported } from "@/features/location/backgroundLocation";
+import {
+  describeGpsStatus,
+  type GpsStatusView,
+} from "@/features/location/gpsStatus";
+import { useGpsSignal } from "@/features/location/useGpsSignal";
 import {
   backgroundLimit,
   chooseLocationSource,
@@ -35,7 +36,7 @@ import {
   formatDuration,
   formatPace,
 } from "@/features/run/format";
-import type { RunStatus } from "@/features/run/runSession";
+import { isTooShortToSave, type RunStatus } from "@/features/run/runSession";
 import { routePointCount } from "@/features/run/track";
 import { useRunSession } from "@/features/run/useRunSession";
 import {
@@ -46,7 +47,7 @@ import { colors, radii, spacing } from "@/theme";
 
 export function RunScreen() {
   const permission = useLocationPermission();
-  const { session, elapsedMs, start, pause, resume, finish, addSample } =
+  const { session, now, elapsedMs, start, pause, resume, finish, addSample } =
     useRunSession();
   const { status, track } = session;
   const inProgress = status === "recording" || status === "paused";
@@ -58,16 +59,61 @@ export function RunScreen() {
   };
   const limit = backgroundLimit(sourceInput);
   const gps = useGpsSignal(chooseLocationSource(sourceInput), addSample);
+  // Background recording isn't possible or didn't start: GPS stops if the
+  // screen locks, so keep it on during the run.
+  const foregroundOnly = limit !== null || gps.backgroundFailed;
+  const gpsView = describeGpsStatus({
+    signal: gps.signal,
+    now,
+    recording: status === "recording",
+    locationAvailable: permission.access.kind === "granted",
+  });
   const pace = averagePaceMsPerKm(elapsedMs, track.distanceM);
   const persistence = useRunPersistence(session);
+  // Set when the user already chose to discard, so leaving doesn't ask twice.
+  const leaveConfirmed = useRef(false);
 
-  useDiscardGuard(inProgress, persistence.discard);
+  useDiscardGuard(inProgress, persistence.discard, leaveConfirmed);
 
-  const confirmFinish = () =>
+  const confirmStart = () => {
+    if (gps.signal.kind === "ready") {
+      start();
+      return;
+    }
+    Alert.alert(
+      "No GPS signal yet",
+      "You can start now: the timer runs and distance starts counting once GPS is found (usually within a minute outdoors).",
+      [
+        { text: "Wait", style: "cancel" },
+        { text: "Start anyway", onPress: start },
+      ],
+    );
+  };
+
+  const discardRun = () => {
+    leaveConfirmed.current = true;
+    persistence.discard();
+    router.back();
+  };
+
+  const confirmFinish = () => {
+    if (isTooShortToSave(elapsedMs, track.distanceM)) {
+      Alert.alert(
+        "Very short run",
+        "This run is under a minute and under 100 m. Save it anyway?",
+        [
+          { text: "Keep going", style: "cancel" },
+          { text: "Discard", style: "destructive", onPress: discardRun },
+          { text: "Save", onPress: finish },
+        ],
+      );
+      return;
+    }
     Alert.alert("Finish run?", "You won't be able to resume it.", [
       { text: "Keep going", style: "cancel" },
       { text: "Finish", onPress: finish },
     ]);
+  };
 
   // The permission flow only gates starting. If access changes mid-run, the
   // timer keeps going and the GPS row reports the problem.
@@ -76,7 +122,7 @@ export function RunScreen() {
 
   return (
     <SafeAreaView style={styles.root}>
-      {inProgress && limit !== null ? <KeepScreenOn /> : null}
+      {inProgress && foregroundOnly ? <KeepScreenOn /> : null}
       <View style={styles.topBar}>
         <Pressable
           onPress={() => router.back()}
@@ -113,7 +159,7 @@ export function RunScreen() {
         />
       ) : (
         <>
-          <View style={styles.body}>
+          <ScrollView style={styles.scroll} contentContainerStyle={styles.body}>
             <StatusBadge status={status} />
             <Text
               style={styles.timer}
@@ -125,20 +171,25 @@ export function RunScreen() {
             </Text>
             <Text style={styles.timerLabel}>Duration</Text>
             <RunStats distanceM={track.distanceM} pace={pace} />
-            <GpsStatus signal={gps} />
+            <GpsStatus view={gpsView} />
             {status === "idle" && permission.background === "notGranted" ? (
               <BackgroundPermissionCard
                 onAllow={permission.requestBackground}
                 onOpenSettings={permission.openSettings}
               />
             ) : (
-              <BackgroundNote status={status} limit={limit} />
+              <BackgroundNote
+                status={status}
+                limit={limit}
+                backgroundActive={gps.activeSource === "background"}
+                backgroundFailed={gps.backgroundFailed}
+              />
             )}
-          </View>
+          </ScrollView>
 
           <View style={styles.controls}>
             {status === "idle" ? (
-              <Button label="Start" icon="play" onPress={start} />
+              <Button label="Start" icon="play" onPress={confirmStart} />
             ) : (
               <>
                 {status === "recording" ? (
@@ -202,12 +253,17 @@ function Stat({ label, value, unit }: { label: string; value: string; unit: stri
 
 // While a run is in progress, intercept every way of leaving the screen
 // (close button, Android back, gestures) and ask before discarding it.
-function useDiscardGuard(active: boolean, onDiscard: () => void) {
+function useDiscardGuard(
+  active: boolean,
+  onDiscard: () => void,
+  leaveConfirmed: RefObject<boolean>,
+) {
   const navigation = useNavigation();
 
   useEffect(() => {
     if (!active) return;
     return navigation.addListener("beforeRemove", (event) => {
+      if (leaveConfirmed.current) return;
       event.preventDefault();
       Alert.alert(
         "Discard this run?",
@@ -218,6 +274,7 @@ function useDiscardGuard(active: boolean, onDiscard: () => void) {
             text: "Discard",
             style: "destructive",
             onPress: () => {
+              leaveConfirmed.current = true;
               onDiscard();
               navigation.dispatch(event.data.action);
             },
@@ -225,7 +282,7 @@ function useDiscardGuard(active: boolean, onDiscard: () => void) {
         ],
       );
     });
-  }, [navigation, active, onDiscard]);
+  }, [navigation, active, onDiscard, leaveConfirmed]);
 }
 
 function PermissionGate({
@@ -287,7 +344,7 @@ function PermissionGate({
   })();
 
   return (
-    <View style={styles.gate}>
+    <ScrollView style={styles.scroll} contentContainerStyle={styles.gate}>
       <View style={styles.gateIcon}>
         <Ionicons name="location-outline" size={36} color={colors.accent} />
       </View>
@@ -303,7 +360,7 @@ function PermissionGate({
           onPress={() => router.back()}
         />
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -335,33 +392,6 @@ function StatusBadge({ status }: { status: RunStatus }) {
   );
 }
 
-function describeGps(signal: GpsSignal): {
-  text: string;
-  icon: "navigate" | "warning-outline" | "search";
-  warn: boolean;
-} {
-  switch (signal.kind) {
-    case "off":
-    case "searching":
-      return { text: "Searching for GPS…", icon: "search", warn: false };
-    case "ready": {
-      if (signal.accuracyM === null) {
-        return { text: "GPS connected", icon: "navigate", warn: false };
-      }
-      const radius = `±${Math.round(signal.accuracyM)} m`;
-      return signal.accuracyM > WEAK_ACCURACY_M
-        ? { text: `GPS signal weak · ${radius}`, icon: "warning-outline", warn: true }
-        : { text: `GPS good · ${radius}`, icon: "navigate", warn: false };
-    }
-    case "error":
-      return {
-        text: `GPS unavailable: ${signal.message}`,
-        icon: "warning-outline",
-        warn: true,
-      };
-  }
-}
-
 // Shown before Start in the app's own build when "Allow all the time" isn't
 // granted. Running without it still works, but stops if the user switches
 // apps, so it's offered, not required.
@@ -391,31 +421,54 @@ function BackgroundPermissionCard({
   );
 }
 
+// States only what's actually happening: while recording, the line about
+// switching apps depends on the background service really running, not on
+// whether it should be.
 function BackgroundNote({
   status,
   limit,
+  backgroundActive,
+  backgroundFailed,
 }: {
   status: RunStatus;
   limit: BackgroundLimit;
+  backgroundActive: boolean;
+  backgroundFailed: boolean;
 }) {
-  if (status === "finished") return null;
-  if (limit === null) {
-    return (
-      <Text style={styles.bgNote}>Recording continues if you switch apps.</Text>
-    );
-  }
-  if (status === "idle") return null;
-  return (
-    <Text style={[styles.bgNote, styles.bgWarn]}>
-      {limit === "expoGo"
-        ? "Keep Prymal open: Expo Go can't record in the background."
-        : 'Keep Prymal open: without "Allow all the time", recording stops in other apps.'}
-    </Text>
+  const ok = (
+    <Text style={styles.bgNote}>Recording continues if you switch apps.</Text>
   );
+  const warn = (text: string) => (
+    <Text style={[styles.bgNote, styles.bgWarn]}>{text}</Text>
+  );
+
+  switch (status) {
+    case "finished":
+      return null;
+    case "idle":
+      return limit === null ? ok : null;
+    case "paused":
+      // Recording is stopped anyway; only warn about what happens on resume.
+      return limit === null && !backgroundFailed
+        ? null
+        : warn("After you resume, keep Prymal open: it can't record in other apps.");
+    case "recording":
+      if (backgroundActive) return ok;
+      if (backgroundFailed) {
+        return warn(
+          "Background recording couldn't start. Keep Prymal open: distance still counts while it's on screen.",
+        );
+      }
+      return warn(
+        limit === "expoGo"
+          ? "Keep Prymal open: Expo Go can't record in the background."
+          : 'Keep Prymal open: without "Allow all the time", recording stops in other apps.',
+      );
+  }
 }
 
-function GpsStatus({ signal }: { signal: GpsSignal }) {
-  const { text, icon, warn } = describeGps(signal);
+function GpsStatus({ view }: { view: GpsStatusView }) {
+  const { text, icon, warn } = view;
   const color = warn ? colors.accent : colors.textSecondary;
   return (
     <View style={styles.gpsRow} accessible accessibilityLabel={text}>
@@ -444,7 +497,7 @@ function FinishedPanel({
 }) {
   return (
     <>
-      <View style={styles.body}>
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.body}>
         <Ionicons name="checkmark-circle" size={56} color={colors.accent} />
         <Text style={styles.finishedTitle} accessibilityRole="header">
           Run complete
@@ -459,7 +512,7 @@ function FinishedPanel({
           GPS: {routePoints} route points · {ignoredReadings} readings ignored
         </Text>
         <SaveStatus saveState={saveState} />
-      </View>
+      </ScrollView>
       <View style={styles.controls}>
         {saveState.kind === "error" ? (
           <Button label="Try saving again" onPress={onRetrySave} />
@@ -534,11 +587,17 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 
-  body: {
+  // Scrollable so small screens and large font sizes don't clip content;
+  // flexGrow keeps it vertically centred when it does fit.
+  scroll: {
     flex: 1,
+  },
+  body: {
+    flexGrow: 1,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.lg,
   },
   timer: {
     color: colors.textPrimary,
@@ -712,9 +771,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   gate: {
-    flex: 1,
+    flexGrow: 1,
     justifyContent: "center",
     paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.lg,
   },
   gateIcon: {
     width: 72,

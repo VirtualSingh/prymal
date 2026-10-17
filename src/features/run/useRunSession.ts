@@ -37,6 +37,8 @@ export function useRunSession() {
 
   return {
     session,
+    /** Display clock; advances only while recording. */
+    now,
     elapsedMs: getElapsedMs(session, now),
     start,
     pause,

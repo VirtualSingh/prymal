@@ -110,6 +110,18 @@ export function runSessionReducer(
   }
 }
 
+/** Runs shorter than both of these are probably accidental. */
+export const SHORT_RUN_MAX_MS = 60_000;
+export const SHORT_RUN_MAX_M = 100;
+
+/**
+ * True for a run that's both under a minute and under 100 m: most likely a
+ * test tap or an accidental Start, so finishing it asks before saving.
+ */
+export function isTooShortToSave(elapsedMs: number, distanceM: number): boolean {
+  return elapsedMs < SHORT_RUN_MAX_MS && distanceM < SHORT_RUN_MAX_M;
+}
+
 export function getElapsedMs(session: RunSession, now: number): number {
   return (
     session.accumulatedMs +

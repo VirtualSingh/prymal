@@ -8,7 +8,10 @@ import { describe, it } from "node:test";
 import {
   getElapsedMs,
   initialRunSession,
+  isTooShortToSave,
   runSessionReducer,
+  SHORT_RUN_MAX_M,
+  SHORT_RUN_MAX_MS,
   type RunAction,
   type RunSession,
 } from "./runSession.ts";
@@ -116,6 +119,16 @@ describe("runSessionReducer", () => {
   it("reset returns to idle", () => {
     const s = apply([{ type: "start", at: 0 }, { type: "reset" }]);
     assert.deepEqual(s, initialRunSession);
+  });
+});
+
+describe("isTooShortToSave", () => {
+  it("is true only when both time and distance are small", () => {
+    assert.equal(isTooShortToSave(30_000, 20), true);
+    assert.equal(isTooShortToSave(SHORT_RUN_MAX_MS - 1, SHORT_RUN_MAX_M - 1), true);
+    assert.equal(isTooShortToSave(SHORT_RUN_MAX_MS, 0), false, "a full minute counts");
+    assert.equal(isTooShortToSave(10_000, SHORT_RUN_MAX_M), false, "100 m counts");
+    assert.equal(isTooShortToSave(5 * 60_000, 0), false, "long indoor run");
   });
 });
 

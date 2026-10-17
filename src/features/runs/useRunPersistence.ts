@@ -40,6 +40,10 @@ export function useRunPersistence(session: RunSession) {
   const latest = useRef(session);
   const queue = useRef<Promise<void>>(Promise.resolve());
   const runId = useRef<string | null>(null);
+  // After discard, no more checkpoints: a late one (timer or app going to
+  // the background while the screen closes) would bring the discarded run
+  // back as a "recovered" run on the next launch.
+  const discarded = useRef(false);
 
   // Declared first so the effects below always see the current session.
   useEffect(() => {
@@ -55,6 +59,7 @@ export function useRunPersistence(session: RunSession) {
 
   const checkpoint = useCallback(() => {
     const s = latest.current;
+    if (discarded.current) return;
     if (s.status !== "recording" && s.status !== "paused") return;
     const at = Date.now();
     // A failed checkpoint only weakens crash recovery; the run continues.
@@ -100,10 +105,10 @@ export function useRunPersistence(session: RunSession) {
     return () => sub.remove();
   }, [checkpoint]);
 
-  const discard = useCallback(
-    () => enqueue(() => clearCheckpoint(db)).catch(() => {}),
-    [db, enqueue],
-  );
+  const discard = useCallback(() => {
+    discarded.current = true;
+    return enqueue(() => clearCheckpoint(db)).catch(() => {});
+  }, [db, enqueue]);
 
   return { saveState, retrySave: save, discard };
 }
