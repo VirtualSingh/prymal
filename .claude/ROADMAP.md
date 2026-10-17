@@ -206,7 +206,45 @@ close/reopen the app, and find the saved run.
 **Exit criteria:** Previous runs are easy to find and their values are
 consistent with the run summary.
 
+## Milestone 6b --- Own build + background tracking (founder must-have)
+
+**Founder decision 2026-10-17:** recording must continue when the runner
+switches to another app (e.g. Spotify, YouTube). Expo Go can't do this
+("Foreground and background services are not available in Expo Go for
+Android"), so this needs the app's own (development) build.
+
+-   [ ] Founder confirms the Android package name (leaning
+    `com.rethinklabs.prymal`) → set `android.package` in `app.json`.
+-   [ ] Choose a build route. **Local on Windows:** Android Studio (SDK +
+    bundled JDK), then `npx expo run:android`; no Expo account needed.
+    `eas build --local` is not an option (Expo: "we do not support Windows
+    for local builds"). **Cloud:** EAS Build, which needs an Expo account
+    (free tier).
+-   [ ] Background location: `expo-task-manager` +
+    `Location.startLocationUpdatesAsync` with an Android foreground-service
+    notification while recording. Config plugin
+    `isAndroidBackgroundLocationEnabled` (+ foreground service). Expo docs:
+    on Android "you must request both foreground and background
+    permissions"; background is granted in system settings ("Allow all
+    the time") on Android 11+, so explain it in-app first.
+-   [ ] Keep the current foreground-only watcher as a fallback when
+    running in Expo Go.
+-   [ ] Maps API key in the build (debug-keystore SHA-1 for local builds),
+    kept out of git.
+-   [ ] Test on the phone: switch to other apps mid-run, screen locked,
+    battery-saver behaviour of the phone's brand, and swipe-away (Expo
+    docs: "Background location will stop if the user terminates the
+    app").
+-   [ ] Before any Play Store release: Google Play review/declarations for
+    background location and the location foreground service.
+
+**Exit criteria:** A run keeps recording distance while the founder uses
+other apps and with the screen locked, on the founder's phone.
+
 ## Milestone 7 --- Supabase account and cloud sync
+
+**Founder decision 2026-10-17:** sign-in is wanted eventually but
+**deferred**; the founder is the only user for now.
 
 -   [ ] Decide whether sign-in is needed for the first usable release.
 -   [ ] Set up Supabase using safe environment configuration.

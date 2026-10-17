@@ -976,6 +976,42 @@ plans; Supabase is billed separately.
 API-restricted key, and sets a budget alert, then decides the Android
 package name.
 
+### Founder decisions --- 2026-10-17
+
+- **Background tracking is a must-have:** a run must keep recording when
+  the user switches apps (Spotify, YouTube). This means leaving Expo Go
+  for the app's own development build. Planned as ROADMAP Milestone 6b.
+- **Login wanted, but deferred:** single user (founder) for now.
+- **Package name:** founder leaning `com.rethinklabs.prymal`
+  ("rethinklabs" as a possible parent company). Alternative considered:
+  `com.pushpendra.singh.prymal.run`. Awaiting confirmation; not yet set
+  in `app.json`.
+- **Build route question:** founder asked about building locally and
+  installing the APK later, without an Expo account.
+
+**Facts checked for these answers:**
+
+- Local builds: `npx expo run:android` compiles with the locally
+  installed Android SDK. `eas build --local` needs `eas login` and Expo
+  states "we do not support Windows for local builds".
+- This PC (checked 2026-10-17): no Android Studio, no Android SDK, no
+  JDK/`java`, no `adb`; ANDROID_HOME/JAVA_HOME unset; 208.9 GB free on C:.
+- Background location (SDK 57 expo-location docs): needs a development
+  build; Android needs foreground + background permission; the
+  foreground-service notification is required; it stops if the user
+  terminates the app; Play review is needed for these permissions when
+  publishing.
+- Google's Android developer-verification rollout: first enforcement
+  30 Sep 2026 in Brazil, Indonesia, Singapore, Thailand; global in 2027.
+  India is not in the first wave (secondary sources; not confirmed on
+  Google's own docs). Sources disagree on how adb installs are treated.
+- Runs saved inside Expo Go stay in Expo Go's storage. They won't appear
+  in the app's own build, which has separate storage.
+
+**Next single action:** Founder confirms the package name and the build
+route (local Android Studio recommended), and continues `TESTING.md` in
+Expo Go meanwhile.
+
 ## Required update template for future sessions
 
 Append a dated entry with: - **Milestone / status:** - **What
