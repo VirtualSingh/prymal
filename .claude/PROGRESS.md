@@ -1130,6 +1130,42 @@ clean doctor result. `npx tsc --noEmit` exit 0; `npm test` 81/81;
 `npx expo export --platform android --clear` exit 0 (1369 modules);
 `eas config` for the development profile resolves.
 
+### First EAS development build --- 2026-10-17
+
+**Founder approved** the first development build and set a build policy:
+cloud builds only after 3+ features are pushed to GitHub, at most ~1 per
+day (free plan: 15 Android builds/month).
+
+**Build #1** (`09e10d08-3349-4f5f-bd78-2c40074a7f30`, profile
+development, commit `a6df8bb`): EAS created and stored the Android
+keystore in the cloud, uploaded the project (1.3 MB), and then
+**ERRORED** in "Install dependencies":
+`npm ci` → `EUSAGE … package.json and package-lock.json … are not in sync
+… Missing: react-native-worklets@0.10.4 from lock file`.
+
+**Root cause:** expo-router pulls in `react-native-reanimated` and
+`react-native-worklets`. npm (locally 11.19 on Node 24) had auto-installed
+reanimated 4.7.1 + worklets 0.13.0, but `expo-modules-core` only accepts
+worklets `^0.7.4 … ^0.10.0` (`npm ls` showed it "invalid"). Local npm 11
+tolerated it; the EAS builder (Node 22.23.1, **npm 10.9.8**) runs a
+strict `npm ci` and rejected the lock file. SDK 57 expects reanimated
+**4.5.1** and worklets **0.10.1**, and both are native modules compiled
+into the app, so the wrong versions were also a native-build risk.
+
+**Fix:** `npx expo install react-native-reanimated react-native-worklets`
+→ pinned 4.5.1 / 0.10.1 as direct dependencies. Verified:
+- `npm ls` → no invalid/missing packages (only "UNMET OPTIONAL" web/test
+  extras).
+- **Real `npx npm@10.9.8 ci --include=dev --ignore-scripts`** on a copy
+  of package.json + lock → exit 0, 573 packages (reproduces the
+  builder's install step).
+- `npx tsc --noEmit` exit 0; `npm test` 81/81; `npx expo-doctor` 21/21;
+  `npx expo export --platform android --clear` exit 0.
+
+**Lesson:** before an EAS build, run `npm ls` (no "invalid") and an
+`npm@10.9.8 ci` simulation, since local npm 11 is more lenient than the
+builder's npm 10.
+
 ## Required update template for future sessions
 
 Append a dated entry with: - **Milestone / status:** - **What
