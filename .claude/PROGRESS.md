@@ -1186,6 +1186,15 @@ the Maps SDK for Android → add the EAS variable
 production). The map then appears from the **next** build (native
 config), which per the build policy waits for 3+ pushed features.
 
+**Maps key progress (founder-reported 2026-10-17):** application
+restriction set to Android apps with package `com.rethinklabs.prymal` +
+the EAS keystore SHA-1. Advised: API restriction → "Restrict key" → only
+**Maps SDK for Android** (the key had 32 APIs selected by default, i.e.
+everything enabled in the project); optionally disable unused Maps
+Platform APIs project-wide. Later, for Play Store releases, add the Play
+App Signing SHA-1 as a second entry. Still to do: the EAS variable
+`GOOGLE_MAPS_ANDROID_API_KEY` (Sensitive).
+
 **Next single action:** Founder installs the development build and runs
 `TESTING.md` §6 (background recording).
 
