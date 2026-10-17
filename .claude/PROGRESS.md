@@ -959,6 +959,19 @@ SHA-1 + API). Still keep it out of git and out of chat. Don't enable
 other paid Google APIs (Places, Directions, Street View) in this project
 without discussing cost first.
 
+**Free trial (founder-reported 2026-10-17):** the account shows
+₹28,796.63 credit with a 90-day expiry, i.e. Google Cloud's $300 Free
+Trial "Welcome credit". Per Google's Free Program page (updated
+2026-10-13): no automatic charges. The trial billing account auto-closes
+when the credit is spent or 90 days pass; billing is then disabled on
+its projects, there's a 30-day grace period, and then resources are
+deleted. Charges only start after upgrading to a Paid account
+("Activate"). **Implication:** before any real build relies on the Maps
+key, the founder must upgrade to Paid, or the key's project loses
+billing and maps go blank in builds. Native map loads still cost $0.
+Expo Go is unaffected. The credit isn't needed for Prymal's current
+plans; Supabase is billed separately.
+
 **Next single action:** Founder enables Maps SDK for Android, creates an
 API-restricted key, and sets a budget alert, then decides the Android
 package name.
