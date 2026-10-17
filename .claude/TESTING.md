@@ -103,10 +103,15 @@ These can't be tested in Expo Go. Do them once the development build
 from EAS is installed. Runs saved in Expo Go won't appear in this app:
 it has its own storage.
 
-- [ ] Install the development build from the link/QR code Expo gives.
-      On the laptop run **`npx expo start --clear`** (without `--go`), with
-      the phone on the same Wi-Fi, and open Prymal (not Expo Go). Android
-      dialogs now say **Prymal**.
+- [ ] Install the development build: on the phone, open
+      https://expo.dev/accounts/rethinklabs/projects/prymal/builds/81c47380-0150-4890-8334-05030df56d13
+      (logged in to expo.dev) → **Install** → allow your browser to
+      "install unknown apps" if Android asks. The APK is ~256 MB (normal
+      for a development build). The download link expires 2026-10-31.
+- [ ] On the laptop run **`npx expo start --clear`** (without `--go`),
+      with the phone on the same Wi-Fi, then open **Prymal** (not Expo Go)
+      and pick the dev server or scan the QR code. Android dialogs now say
+      **Prymal**.
 - [ ] Run screen, before Start: a **"Keep recording in other apps"** card
       appears. Tap **Allow all the time** → Android settings → choose
       "Allow all the time" → back. The card is gone and the line

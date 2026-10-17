@@ -1166,6 +1166,29 @@ into the app, so the wrong versions were also a native-build risk.
 `npm@10.9.8 ci` simulation, since local npm 11 is more lenient than the
 builder's npm 10.
 
+**Build #2** (`81c47380-0150-4890-8334-05030df56d13`, commit `e56ac40`):
+**FINISHED** at 22:21. Queue ~74 min, build ~19 min. It reused the
+cloud keystore. The builder's own `expo doctor` gave 21/21; `gradlew
+:app:assembleDebug` → "BUILD SUCCESSFUL in 18m 20s"; `expo-location`
+57.0.21 was autolinked. Artifact: `app-debug.apk`, **256 MB** (a debug
+dev client with all ABIs; normal). The download expires 2026-10-31.
+Remaining log warnings are Gradle/Kotlin noise; none were blocking.
+**Not verified yet:** install on the phone, foreground-service
+notification, background recording (`TESTING.md` §6).
+
+Builds used this month: 2 of 15 (assuming failed builds count).
+
+**Maps key next steps (founder):** expo.dev → rethinklabs → prymal →
+Credentials → Android → `com.rethinklabs.prymal` → the keystore's
+**SHA-1** → restrict the Google Maps key to that package + SHA-1 and to
+the Maps SDK for Android → add the EAS variable
+`GOOGLE_MAPS_ANDROID_API_KEY` (Sensitive; development, preview,
+production). The map then appears from the **next** build (native
+config), which per the build policy waits for 3+ pushed features.
+
+**Next single action:** Founder installs the development build and runs
+`TESTING.md` §6 (background recording).
+
 ## Required update template for future sessions
 
 Append a dated entry with: - **Milestone / status:** - **What

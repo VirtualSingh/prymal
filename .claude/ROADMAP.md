@@ -219,7 +219,9 @@ Android"), so this needs the app's own (development) build.
 -   [-] Choose a build route. **Chosen 2026-10-17: EAS cloud builds.**
     Founder created an Expo account; the project is linked as
     `@rethinklabs/prymal`, and `eas.json` has development / preview APK /
-    production profiles. First build not run yet. **Local on Windows:** Android Studio (SDK +
+    production profiles. **First development build succeeded 2026-10-17**
+    (attempt 2, `81c47380…`; attempt 1 failed on a lock-file mismatch,
+    fixed in `e56ac40`). Not yet installed on the phone. **Local on Windows:** Android Studio (SDK +
     bundled JDK), then `npx expo run:android`; no Expo account needed.
     `eas build --local` is not an option (Expo: "we do not support Windows
     for local builds"). **Cloud:** EAS Build, which needs an Expo account
