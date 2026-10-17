@@ -5,6 +5,7 @@ import { useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Linking,
   StyleSheet,
   Text,
   View,
@@ -12,6 +13,7 @@ import {
 
 import { Button } from "@/components/Button";
 import { Screen } from "@/components/Screen";
+import { backgroundTrackingSupported } from "@/features/location/backgroundLocation";
 import {
   formatDistanceKm,
   formatDistanceKmShort,
@@ -42,6 +44,8 @@ export function ProfileScreen() {
       )}
 
       <PrivacyCard />
+
+      {backgroundTrackingSupported ? <BackgroundHelpCard /> : null}
 
       {state.kind === "ready" && state.value.length > 0 ? (
         <DeleteAllRuns count={state.value.length} onDeleted={retry} />
@@ -115,6 +119,34 @@ function PrivacyCard() {
         a run keeps recording while you use other apps, with a notification
         showing. Nothing is recorded outside a run.
       </Text>
+    </View>
+  );
+}
+
+// Some Android brands stop apps in the background to save battery, even with
+// a foreground-service notification. There's no reliable way to detect that
+// from the app, so explain the fix and link to Prymal's settings.
+function BackgroundHelpCard() {
+  return (
+    <View style={styles.card}>
+      <View style={styles.cardTitleRow}>
+        <Ionicons name="battery-half-outline" size={18} color={colors.accent} />
+        <Text style={styles.cardTitle} accessibilityRole="header">
+          If recording stops in other apps
+        </Text>
+      </View>
+      <Text style={styles.body}>
+        Some phones stop apps in the background to save battery. In Prymal's
+        settings, set Location to "Allow all the time" and Battery to
+        "Unrestricted" (the wording varies by phone).
+      </Text>
+      <Button
+        label="Open Prymal settings"
+        variant="secondary"
+        onPress={() => {
+          Linking.openSettings().catch(() => {});
+        }}
+      />
     </View>
   );
 }
