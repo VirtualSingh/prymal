@@ -1209,6 +1209,81 @@ API; Prymal itself only needs Maps SDK for Android.
 **Next single action:** Founder installs the development build and runs
 `TESTING.md` §6 (background recording).
 
+### Milestone 8 --- reliability and polish --- 2026-10-17
+
+**Founder request:** "work on reliability and polish i.e Milestone 8, add
+more tests to the testing markdown. want to test full build with all the
+features we have built so far tomorrow morning."
+
+**What changed (code only, no new dependencies):**
+
+- **GPS status that tells the truth** (`src/features/location/gpsStatus.ts`,
+  pure + 8 tests): while recording, no reading for 10 s → "GPS signal
+  lost. Distance resumes when it's back." (previously the last "GPS good"
+  stayed on screen). Location access off mid-run → "Location is off for
+  Prymal. Distance is paused." Searching while recording is highlighted.
+  Readings now carry their arrival time; `useRunSession` exposes its
+  display clock (`now`).
+- **Background fallback** (`useGpsSignal`): if the background service
+  fails to start, the hook stops it, switches to the foreground watcher,
+  and reports `backgroundFailed`; it also reports the source that's
+  **actually** active. The run screen keeps the screen on and says
+  "Background recording couldn't start. Keep Prymal open…" instead of
+  claiming background recording.
+- **Start without GPS:** tapping Start before any fix asks "No GPS signal
+  yet" (Wait / Start anyway).
+- **Very short runs** (`isTooShortToSave`, < 1 min **and** < 100 m, + 1
+  test): finishing asks Keep going / Discard / Save. Discard leaves
+  without a second "Discard this run?" prompt (a `leaveConfirmed` ref in
+  the discard guard).
+- **No resurrection after discard:** `useRunPersistence` ignores
+  checkpoints after `discard()`. A late 15 s timer or app-background
+  checkpoint while the screen closed could otherwise have brought a
+  discarded run back as "Recovered" on the next launch.
+- **Small screens / large text:** the run screen body, permission gate,
+  and finished summary are now scrollable (flexGrow, so still centred
+  when they fit). The new background card made the idle screen taller.
+- **Profile:** "If recording stops in other apps" card (only in the app's
+  own build): battery "Unrestricted" + location "Allow all the time",
+  with an **Open Prymal settings** button.
+- **Background note** now reflects the real state per status (idle,
+  recording, paused).
+- **`TESTING.md` rewritten** as one ordered plan for the full build:
+  A install, B indoors (permissions, new short-run/no-GPS checks, saving,
+  recovery, details, Profile, large text), C outdoors (GPS basics,
+  background, new GPS-lost / location-off checks, map + splits,
+  optional), D low priority, plus an expanded Results table.
+
+**Files changed:** `src/features/location/gpsStatus.ts` (+ test, new),
+`src/features/location/useGpsSignal.ts`, `src/features/run/useRunSession.ts`,
+`src/features/run/runSession.ts` (+ test),
+`src/features/runs/useRunPersistence.ts`, `src/screens/RunScreen.tsx`,
+`src/screens/ProfileScreen.tsx`, `.claude/TESTING.md`,
+`.claude/ROADMAP.md`, `.claude/PROGRESS.md`
+
+**Commands run and results:**
+
+- `npm test` → **90/90 pass** (was 81; +8 GPS status, +1 short-run).
+- `npx tsc --noEmit` → exit 0.
+- `npx expo export --platform android --clear` → exit 0, 1360 modules;
+  the new strings are in the bundle.
+- `npm ls --all` → no invalid/missing packages; `package.json` and the
+  lock file are unchanged since build #2's successful install.
+
+**Commits:** `f5f8567` (run screen reliability), `848a8e2` (Profile
+battery help), plus a docs commit.
+
+**Not verifiable without the phone:** everything user-facing above. See
+`TESTING.md`.
+
+**Known limits:** the 10 s "lost" threshold and the short-run thresholds
+(1 min / 100 m) are first guesses. The "location off" message relies on
+the permission re-check when the app returns to the foreground, plus the
+GPS-lost timeout.
+
+**Next single action:** Founder pushes to GitHub and approves an EAS
+**preview** build for the full-build test on 2026-10-18.
+
 ## Required update template for future sessions
 
 Append a dated entry with: - **Milestone / status:** - **What

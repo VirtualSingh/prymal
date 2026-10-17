@@ -273,19 +273,37 @@ retrieved across app sessions/devices as intended.
 
 ## Milestone 8 --- Reliability and first MVP polish
 
--   [ ] Test permission denial and later permission recovery.
--   [ ] Test app backgrounding and interruption behavior in the actual
-    build type.
--   [ ] Test screen sizes, safe areas, and readable stats.
+**Started 2026-10-17** (founder: "work on reliability and polish"). Code
+changes are listed below; all device checks are in `TESTING.md` for the
+full-build session on 2026-10-18.
+
+-   [-] Test permission denial and later permission recovery. (GPS row
+    now says when location is off mid-run; the background permission
+    downgrade falls back to the foreground watcher. Device test:
+    `TESTING.md` B1, C3, C5.)
+-   [-] Test app backgrounding and interruption behavior in the actual
+    build type. (Background service falls back to the foreground watcher
+    if it can't start, and the UI states what's really running. Device
+    test: C2, B4.)
+-   [-] Test screen sizes, safe areas, and readable stats. (Run screen,
+    permission gate, and summary now scroll. Device test: B7.)
 -   [ ] Check location accuracy and distance calculation on multiple
-    real runs.
--   [ ] Handle accidental finish, empty runs, duplicate saves, and app
-    restart.
+    real runs. (Device test: C1; needs several real runs.)
+-   [-] Handle accidental finish, empty runs, duplicate saves, and app
+    restart. ("Very short run" Discard/Save on finish < 1 min and
+    < 100 m; "No GPS signal yet" confirmation on Start; no checkpoint
+    after discard, so a discarded run can't come back as "recovered";
+    saves were already idempotent and recovery already existed. Device
+    test: B2, B4.)
+-   [-] GPS signal-lost detection: no reading for 10 s while recording →
+    "GPS signal lost" instead of a stale "GPS good". (Device test: C3.)
 -   [-] Add privacy explanation and route visibility decisions. (Profile
-    "Your data" card states local-only storage, foreground-only location,
-    and that maps load Google tiles; Delete all runs added 2026-10-15.
-    Route sharing/visibility decisions wait for cloud sync.)
--   [ ] Fix high-impact defects before expanding scope.
+    "Your data" card states local-only storage, location only during
+    runs (incl. background with notification), and that maps load Google
+    tiles; Delete all runs added 2026-10-15; battery-saver help card
+    2026-10-17. Route sharing/visibility decisions wait for cloud sync.)
+-   [ ] Fix high-impact defects before expanding scope. (After the
+    2026-10-18 test session.)
 
 **Exit criteria:** Core run recording and review are stable enough for
 repeated personal use.
@@ -318,9 +336,8 @@ are coded.
 
 ## Immediate next action
 
-Milestone 6b code (background recording, EAS setup, maps-key wiring) is
-done and passes automated checks. Next: the founder approves the first
-EAS **development build** (uses 1 of 15 free Android builds/month and
-uploads the project to Expo). Meanwhile, `TESTING.md` sections 0--5 can
-still be done in Expo Go (`npx expo start --go --clear`). Milestone 7
-(Supabase/login) is deferred by the founder.
+Milestone 8 code is done and passes automated checks. Next: the founder
+pushes to GitHub and approves an EAS **preview build** (standalone APK
+with the Maps key) for the full-build test session on 2026-10-18,
+following `TESTING.md` top to bottom. Then fix whatever that session
+finds. Milestone 7 (Supabase/login) is deferred by the founder.
