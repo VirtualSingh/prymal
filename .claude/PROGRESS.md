@@ -1113,6 +1113,23 @@ other apps / with the screen locked, the OEM battery saver.
 
 **Next single action:** Founder approves the first EAS development build.
 
+**Commit:** `ec1ad24` (local).
+
+### SDK 57 patch alignment --- 2026-10-17
+
+`npx expo install --fix` before the first native build: expo 57.0.27 →
+57.0.30, expo-linking 57.0.12 → 57.0.13, expo-router 57.0.26 → 57.0.28,
+expo-constants installed 57.0.22 (within its existing range). It stays
+within SDK 57. Done as a separate commit, since the first native build
+compiles against these versions.
+
+Results: `npx expo-doctor` → first run 20/21 with "Directory check failed
+with unexpected server response" (a React Native Directory server
+hiccup); re-run → **21/21 checks passed, no issues**, the first fully
+clean doctor result. `npx tsc --noEmit` exit 0; `npm test` 81/81;
+`npx expo export --platform android --clear` exit 0 (1369 modules);
+`eas config` for the development profile resolves.
+
 ## Required update template for future sessions
 
 Append a dated entry with: - **Milestone / status:** - **What
@@ -1159,8 +1176,8 @@ repository.
 
   Android JS bundle (expo export)     Pass (2026-10-13)
 
-  expo-doctor                         20/21; `expo` patch 57.0.27 vs
-                                      expected 57.0.28 (pre-existing)
+  expo-doctor                         21/21 pass (2026-10-17, after
+                                      `expo install --fix`)
 
   Production build (EAS/native)       Not run
 
