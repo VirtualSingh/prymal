@@ -91,8 +91,8 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-// Every statement here must stay true; update it when sync or background
-// tracking is added.
+// Every statement here must stay true; update it when sync is added or
+// location use changes.
 function PrivacyCard() {
   return (
     <View style={styles.card}>
@@ -111,8 +111,9 @@ function PrivacyCard() {
         Maps.
       </Text>
       <Text style={styles.body}>
-        Location is used only while the run screen is open, never in the
-        background.
+        Location is used only during runs. If you allow it "all the time",
+        a run keeps recording while you use other apps, with a notification
+        showing. Nothing is recorded outside a run.
       </Text>
     </View>
   );

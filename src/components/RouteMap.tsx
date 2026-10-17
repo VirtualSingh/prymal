@@ -1,3 +1,5 @@
+import { isRunningInExpoGo } from "expo";
+import Constants from "expo-constants";
 import { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import MapView, { Marker, Polyline } from "react-native-maps";
@@ -6,13 +8,30 @@ import { routeRegion, routeSegments } from "@/features/runs/routeGeometry";
 import type { RunPointRecord } from "@/features/runs/runRecord";
 import { colors, radii, spacing } from "@/theme";
 
-// Static preview of a saved route: Google Maps on Android (no API key needed
-// in Expo Go; a store/development build needs one, see PROGRESS.md).
-// Gestures are off so the map doesn't fight the page's scrolling. The map
-// is local to this phone; routes are not shared anywhere.
+// Google Maps on Android needs an API key. Expo Go has its own; the app's own
+// builds only have one if GOOGLE_MAPS_ANDROID_API_KEY was set when building
+// (see app.config.ts). Without a key the Google Maps SDK can crash the app,
+// so the map isn't rendered at all in that case.
+const mapsAvailable =
+  isRunningInExpoGo() || Constants.expoConfig?.extra?.mapsConfigured === true;
+
+// Static preview of a saved route. Gestures are off so the map doesn't fight
+// the page's scrolling. Routes are not shared anywhere; the map only
+// downloads Google map images for the area shown.
 export function RouteMap({ points }: { points: RunPointRecord[] }) {
   const segments = useMemo(() => routeSegments(points), [points]);
   const region = useMemo(() => routeRegion(segments.flat()), [segments]);
+
+  if (!mapsAvailable) {
+    return (
+      <View style={[styles.frame, styles.empty]}>
+        <Text style={styles.emptyText}>
+          Route map isn't set up in this build yet (it needs the Google Maps
+          key). Your route is saved and will show once it is.
+        </Text>
+      </View>
+    );
+  }
 
   if (!region || points.length < 2) {
     return (

@@ -1012,6 +1012,107 @@ package name.
 route (local Android Studio recommended), and continues `TESTING.md` in
 Expo Go meanwhile.
 
+### Milestone 6b --- background recording + EAS setup --- 2026-10-17
+
+**Milestone / status:** code done, automated checks pass; **no build run
+yet, nothing device-tested.**
+
+**Founder actions/decisions:** created an Expo account and logged in on
+this PC (`eas whoami`: `pushpendra-singh`, also owner of org
+`rethinklabs`); confirmed package `com.rethinklabs.prymal`. The build
+route is now EAS cloud (Android Studio no longer needed).
+
+**What changed:**
+
+- `app.json`: `android.package` `com.rethinklabs.prymal`; `owner`
+  `rethinklabs`; `extra.eas.projectId` `b139728b-cd94-496c-9bc8-dbe6e9a7cc19`
+  (from `eas init --account rethinklabs`). `expo-location` plugin:
+  `isAndroidBackgroundLocationEnabled: true`,
+  `isAndroidForegroundServiceEnabled: true`, updated permission texts.
+  `eas init` had also copied an explicit `android.permissions` list into
+  `app.json`. It was removed so the plugin flags are the single source of
+  truth; the introspected manifest still has all 5 permissions.
+- `eas.json`: `development` (dev client, internal APK, env development),
+  `preview` (internal APK, env preview), `production` (AAB,
+  autoIncrement, env production); `appVersionSource: remote`.
+- `app.config.ts`: adds the `react-native-maps` plugin with
+  `androidGoogleMapsApiKey` **only if** `GOOGLE_MAPS_ANDROID_API_KEY` is
+  set (local `.env.local` or an EAS "Sensitive" variable), and exposes
+  only `extra.mapsConfigured: true/false` to JS, never the key.
+- **Background recording** (`src/features/location/backgroundLocation.ts`):
+  `expo-task-manager` task defined at bundle start-up (imported by the
+  root layout), only outside Expo Go (`isRunningInExpoGo()`; the
+  background-task package isn't available in Expo Go on Android).
+  `startLocationUpdatesAsync` with a foreground-service notification
+  ("Prymal is recording your run"), `killServiceOnDestroy: true`.
+  Start/stop are serialized in a queue. Readings go to the run screen
+  through a small relay. A fresh app start stops any leftover service.
+- **Source selection** (`locationSource.ts`, pure + tested):
+  background while recording if supported and "Allow all the time" is
+  granted; otherwise the foreground watcher (before Start, while paused,
+  in Expo Go, or without background permission). Pausing stops the
+  service (the notification disappears).
+- **Permissions:** the hook now also reports background access
+  (`unsupported` in Expo Go). Before Start, the run screen offers a "Keep
+  recording in other apps" card → `requestBackgroundPermissionsAsync`
+  (opens Android settings on 11+). Running without it still works, with
+  a "Keep Prymal open" warning.
+- **Keep-awake** now only applies when background recording isn't
+  available. With it, the screen may turn off.
+- **Map guard:** in the app's own build without a key, the map shows
+  "Route map isn't set up in this build yet" instead of rendering. Google
+  Maps on Android can crash without a key; splits still show.
+- Privacy copy updated so it stays true (permission explainer, Profile
+  "Your data" card).
+- `expo-dev-client ~57.0.20` and `expo-task-manager ~57.0.21` installed.
+  Because of `expo-dev-client`, **plain `npx expo start` now targets the
+  development build; use `npx expo start --go` (`npm run start:go`) for
+  Expo Go.**
+
+**Files changed:** `app.json`, `app.config.ts` (new), `eas.json` (new),
+`package.json` (+ `start:go`), `package-lock.json`,
+`src/app/_layout.tsx`, `src/features/location/backgroundLocation.ts`
+(new), `src/features/location/locationSource.ts` (+ test, new),
+`src/features/location/useGpsSignal.ts`,
+`src/features/location/useLocationPermission.ts`,
+`src/screens/RunScreen.tsx`, `src/screens/ProfileScreen.tsx`,
+`src/components/RouteMap.tsx`, `.claude/TESTING.md`, `.claude/ROADMAP.md`,
+`.claude/PROGRESS.md`
+
+**Commands run and results:**
+
+- `npx eas-cli@latest whoami` → logged in (EAS CLI 25.1.1).
+- `npx eas-cli@latest init --account rethinklabs --non-interactive
+  --force` → "Project successfully linked (ID: b139728b-…)"; it also set
+  the project icon on expo.dev.
+- `npx expo install expo-dev-client expo-task-manager` → OK.
+- `npx expo config --type introspect` → package, owner, projectId
+  correct; manifest permissions ACCESS_COARSE/FINE/BACKGROUND_LOCATION,
+  FOREGROUND_SERVICE, FOREGROUND_SERVICE_LOCATION. With
+  `GOOGLE_MAPS_ANDROID_API_KEY=TEST_PLACEHOLDER`: the
+  `com.google.android.geo.API_KEY` meta-data is present and
+  `mapsConfigured: true`; without it, both are absent/false.
+- `npx eas-cli@latest config --platform android --profile development
+  --non-interactive` → resolves; "No environment variables … found for
+  the development environment on EAS" (expected).
+- `npm test` → **81/81 pass**; `npx tsc --noEmit` → exit 0.
+- `npx expo export --platform android --clear` → exit 0, 1369 modules;
+  bundle contains the task name, notification text, and new copy.
+- `CI=1 npx expo start --go --port 8099` + bundle fetch → the first
+  request timed out after 280 s while Metro was still bundling; the retry
+  got HTTP 200, 6.78 MB, 1528 modules. Metro printed an implausible
+  duration (16723574 ms); timestamps show the real time was a few
+  minutes. Server stopped.
+- `npx expo-doctor` → 20/21: **4 patch mismatches** (expo 57.0.27 vs
+  ~57.0.30, expo-constants, expo-linking, expo-router). Handled in a
+  separate commit (next entry).
+
+**Not verifiable without a build/device:** the foreground service
+actually starting, Android's background-permission flow, behaviour in
+other apps / with the screen locked, the OEM battery saver.
+
+**Next single action:** Founder approves the first EAS development build.
+
 ## Required update template for future sessions
 
 Append a dated entry with: - **Milestone / status:** - **What

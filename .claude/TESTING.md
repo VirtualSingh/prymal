@@ -8,9 +8,11 @@
 ## 0. Setup (do this first)
 
 - [ ] In the terminal running Expo, press **Ctrl+C**, then run
-      `npx expo start --clear`. New native modules were added
-      (`expo-sqlite`, `expo-keep-awake`, `react-native-maps`), so an old
-      server will break.
+      **`npx expo start --go --clear`** (or `npm run start:go -- --clear`).
+      Since 2026-10-17 `expo-dev-client` is installed, so plain
+      `npx expo start` now targets the app's own development build, not
+      Expo Go. New native modules were also added, so an old server will
+      break.
 - [ ] Open the app in Expo Go. No red error screen.
 - [ ] Location permission is owned by **Expo Go** while testing, so
       Android dialogs say "Expo Go". Reset it via Settings → Apps → Expo Go
@@ -94,6 +96,38 @@ Keep the app open and the screen on for all of these.
       than 50 m show no splits.
 - [ ] An indoor run with no GPS points shows "No route to show" instead
       of a broken map.
+
+## 6. Own build: background recording --- Milestone 6b (after the first EAS build)
+
+These can't be tested in Expo Go. Do them once the development build
+from EAS is installed. Runs saved in Expo Go won't appear in this app:
+it has its own storage.
+
+- [ ] Install the development build from the link/QR code Expo gives.
+      On the laptop run **`npx expo start --clear`** (without `--go`), with
+      the phone on the same Wi-Fi, and open Prymal (not Expo Go). Android
+      dialogs now say **Prymal**.
+- [ ] Run screen, before Start: a **"Keep recording in other apps"** card
+      appears. Tap **Allow all the time** → Android settings → choose
+      "Allow all the time" → back. The card is gone and the line
+      "Recording continues if you switch apps" shows.
+- [ ] Start → a notification **"Prymal is recording your run"** appears.
+- [ ] **Switch apps:** while walking, open Spotify/YouTube for 2+ minutes,
+      come back. Distance kept increasing during that time.
+- [ ] **Screen locked:** lock the phone while walking 2+ minutes, unlock.
+      Distance kept increasing. The screen was allowed to turn off.
+- [ ] Pause → notification goes away. Resume → it comes back. Finish → it
+      goes away.
+- [ ] **Swipe Prymal away** from recent apps mid-run → the notification
+      disappears. Reopen → a **Recovered** run is saved.
+- [ ] **Without "Allow all the time"** (set it back to "While using the
+      app"): start a run → the line "Keep Prymal open: without 'Allow all
+      the time'…" shows and the screen stays on.
+- [ ] Phone battery saver / brand-specific "app power management": note
+      whether recording survives ~10 minutes in another app.
+- [ ] Run details in this build: the map shows **"Route map isn't set up
+      in this build yet"** until the Google Maps key is added (expected).
+      Splits still show.
 
 ## 5. Earlier leftovers (low priority)
 

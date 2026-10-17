@@ -7,10 +7,13 @@ import {
 } from "expo-router";
 import { SQLiteProvider } from "expo-sqlite";
 import { StatusBar } from "expo-status-bar";
+import { useEffect } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Button } from "@/components/Button";
+// Side effect: defines the background location task at bundle start-up.
+import { stopBackgroundUpdates } from "@/features/location/backgroundLocation";
 import { DATABASE_NAME, initDatabase } from "@/features/runs/runStore";
 import { colors, spacing } from "@/theme";
 
@@ -35,6 +38,12 @@ const navTheme: Theme = {
 // + recovery of a run interrupted by the app closing) before any screen
 // renders. If that fails, the error reaches the ErrorBoundary below.
 export default function RootLayout() {
+  // A fresh app start has no run in memory (an interrupted one is recovered
+  // from its checkpoint), so stop any background recording left registered.
+  useEffect(() => {
+    stopBackgroundUpdates().catch(() => {});
+  }, []);
+
   return (
     <ThemeProvider value={navTheme}>
       <SQLiteProvider databaseName={DATABASE_NAME} onInit={initDatabase}>

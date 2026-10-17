@@ -2,6 +2,8 @@ import * as Location from "expo-location";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, Linking, Platform } from "react-native";
 
+import { backgroundTrackingSupported } from "./backgroundLocation";
+
 export type LocationAccess =
   | { kind: "checking" }
   | { kind: "undetermined" }
@@ -10,29 +12,58 @@ export type LocationAccess =
   | { kind: "granted" }
   | { kind: "error"; message: string };
 
-async function readAccess(
+/**
+ * "Allow all the time", needed to keep recording while the runner uses other
+ * apps. "unsupported" in Expo Go, which can't record in the background.
+ */
+export type BackgroundAccess = "unsupported" | "unknown" | "granted" | "notGranted";
+
+type Snapshot = { access: LocationAccess; background: BackgroundAccess };
+
+async function readBackground(): Promise<BackgroundAccess> {
+  if (!backgroundTrackingSupported) return "unsupported";
+  const permission = await Location.getBackgroundPermissionsAsync();
+  return permission.granted ? "granted" : "notGranted";
+}
+
+async function readSnapshot(
   permission: Location.LocationPermissionResponse,
-): Promise<LocationAccess> {
+): Promise<Snapshot> {
   if (permission.granted) {
-    const servicesOn = await Location.hasServicesEnabledAsync();
-    return servicesOn ? { kind: "granted" } : { kind: "servicesOff" };
+    const [servicesOn, background] = await Promise.all([
+      Location.hasServicesEnabledAsync(),
+      readBackground(),
+    ]);
+    return {
+      access: servicesOn ? { kind: "granted" } : { kind: "servicesOff" },
+      background,
+    };
   }
+  const background: BackgroundAccess = backgroundTrackingSupported
+    ? "notGranted"
+    : "unsupported";
   if (permission.status === Location.PermissionStatus.UNDETERMINED) {
-    return { kind: "undetermined" };
+    return { access: { kind: "undetermined" }, background };
   }
-  return { kind: "denied", canAskAgain: permission.canAskAgain };
+  return {
+    access: { kind: "denied", canAskAgain: permission.canAskAgain },
+    background,
+  };
 }
 
 function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
-// Foreground ("while using the app") location only. Checking never prompts;
-// the system dialog appears only from request(), after the run screen has
+// Location permissions for runs. Checking never prompts; system dialogs
+// appear only from request()/requestBackground(), after the run screen has
 // explained why. Re-checks when the app returns to the foreground, so coming
 // back from Settings updates the screen without a restart.
 export function useLocationPermission() {
-  const [access, setAccess] = useState<LocationAccess>({ kind: "checking" });
+  const [snapshot, setSnapshot] = useState<Snapshot>({
+    access: { kind: "checking" },
+    background: "unknown",
+  });
   // Only the latest check may update state, so a slow, stale check can't
   // overwrite a newer result.
   const latestCheck = useRef(0);
@@ -41,11 +72,14 @@ export function useLocationPermission() {
     async (getPermission: () => Promise<Location.LocationPermissionResponse>) => {
       const id = ++latestCheck.current;
       try {
-        const next = await readAccess(await getPermission());
-        if (id === latestCheck.current) setAccess(next);
+        const next = await readSnapshot(await getPermission());
+        if (id === latestCheck.current) setSnapshot(next);
       } catch (err) {
         if (id === latestCheck.current) {
-          setAccess({ kind: "error", message: errorMessage(err) });
+          setSnapshot((prev) => ({
+            ...prev,
+            access: { kind: "error", message: errorMessage(err) },
+          }));
         }
       }
     },
@@ -57,6 +91,17 @@ export function useLocationPermission() {
     () => run(Location.requestForegroundPermissionsAsync),
     [run],
   );
+
+  // On Android 11+ this opens the system settings page, where the user picks
+  // "Allow all the time"; the AppState re-check picks up the result.
+  const requestBackground = useCallback(async () => {
+    try {
+      await Location.requestBackgroundPermissionsAsync();
+    } catch {
+      // Falls through to the re-check, which reports the actual state.
+    }
+    await check();
+  }, [check]);
 
   const turnOnLocation = useCallback(async () => {
     if (Platform.OS === "android") {
@@ -85,5 +130,13 @@ export function useLocationPermission() {
     };
   }, [check]);
 
-  return { access, check, request, turnOnLocation, openSettings };
+  return {
+    access: snapshot.access,
+    background: snapshot.background,
+    check,
+    request,
+    requestBackground,
+    turnOnLocation,
+    openSettings,
+  };
 }

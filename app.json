@@ -11,6 +11,7 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.rethinklabs.prymal",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -28,12 +29,20 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Prymal uses your location while a run screen is open to measure your run.",
-          "isAndroidBackgroundLocationEnabled": false,
+          "locationWhenInUsePermission": "Prymal uses your location during a run to measure distance and map your route.",
+          "locationAlwaysAndWhenInUsePermission": "Prymal keeps recording your run while you use other apps. Location is only used while a run is recording.",
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true,
           "isIosBackgroundLocationEnabled": false
         }
       ],
       "expo-sqlite"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "b139728b-cd94-496c-9bc8-dbe6e9a7cc19"
+      }
+    },
+    "owner": "rethinklabs"
   }
 }

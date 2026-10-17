@@ -213,24 +213,31 @@ switches to another app (e.g. Spotify, YouTube). Expo Go can't do this
 ("Foreground and background services are not available in Expo Go for
 Android"), so this needs the app's own (development) build.
 
--   [ ] Founder confirms the Android package name (leaning
+-   [x] Founder confirms the Android package name (leaning
     `com.rethinklabs.prymal`) → set `android.package` in `app.json`.
--   [ ] Choose a build route. **Local on Windows:** Android Studio (SDK +
+    (Confirmed 2026-10-17; set.)
+-   [-] Choose a build route. **Chosen 2026-10-17: EAS cloud builds.**
+    Founder created an Expo account; the project is linked as
+    `@rethinklabs/prymal`, and `eas.json` has development / preview APK /
+    production profiles. First build not run yet. **Local on Windows:** Android Studio (SDK +
     bundled JDK), then `npx expo run:android`; no Expo account needed.
     `eas build --local` is not an option (Expo: "we do not support Windows
     for local builds"). **Cloud:** EAS Build, which needs an Expo account
     (free tier).
--   [ ] Background location: `expo-task-manager` +
+-   [-] (Implemented 2026-10-17; device check pending.) Background location: `expo-task-manager` +
     `Location.startLocationUpdatesAsync` with an Android foreground-service
     notification while recording. Config plugin
     `isAndroidBackgroundLocationEnabled` (+ foreground service). Expo docs:
     on Android "you must request both foreground and background
     permissions"; background is granted in system settings ("Allow all
     the time") on Android 11+, so explain it in-app first.
--   [ ] Keep the current foreground-only watcher as a fallback when
-    running in Expo Go.
--   [ ] Maps API key in the build (debug-keystore SHA-1 for local builds),
-    kept out of git.
+-   [-] Keep the current foreground-only watcher as a fallback when
+    running in Expo Go. (Implemented; also used without "Allow all the
+    time". Device check pending.)
+-   [-] Maps API key in the build, kept out of git. (Wiring done in
+    `app.config.ts` via `GOOGLE_MAPS_ANDROID_API_KEY`; verified with a
+    dummy value. Waiting on the founder's key + EAS variable. The SHA-1
+    comes from EAS-managed credentials after the first build.)
 -   [ ] Test on the phone: switch to other apps mid-run, screen locked,
     battery-saver behaviour of the phone's brand, and swipe-away (Expo
     docs: "Background location will stop if the user terminates the
@@ -309,8 +316,9 @@ are coded.
 
 ## Immediate next action
 
-Milestones 4--6, the route map, splits, and Profile are implemented and
-pass automated checks but are **not device-tested**. Founder: work
-through `TESTING.md` (indoor sections first, then outdoor) and send back
-the results table. Milestone 7 (Supabase) needs founder decisions first:
-whether sign-in is needed, and a Supabase project.
+Milestone 6b code (background recording, EAS setup, maps-key wiring) is
+done and passes automated checks. Next: the founder approves the first
+EAS **development build** (uses 1 of 15 free Android builds/month and
+uploads the project to Expo). Meanwhile, `TESTING.md` sections 0--5 can
+still be done in Expo Go (`npx expo start --go --clear`). Milestone 7
+(Supabase/login) is deferred by the founder.

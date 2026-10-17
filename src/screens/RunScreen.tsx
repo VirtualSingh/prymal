@@ -18,6 +18,13 @@ import {
   WEAK_ACCURACY_M,
   type GpsSignal,
 } from "@/features/location/useGpsSignal";
+import { backgroundTrackingSupported } from "@/features/location/backgroundLocation";
+import {
+  backgroundLimit,
+  chooseLocationSource,
+  type BackgroundLimit,
+  type LocationSourceInput,
+} from "@/features/location/locationSource";
 import {
   useLocationPermission,
   type LocationAccess,
@@ -43,10 +50,14 @@ export function RunScreen() {
     useRunSession();
   const { status, track } = session;
   const inProgress = status === "recording" || status === "paused";
-  const gps = useGpsSignal(
-    permission.access.kind === "granted" && status !== "finished",
-    addSample,
-  );
+  const sourceInput: LocationSourceInput = {
+    status,
+    foregroundGranted: permission.access.kind === "granted",
+    backgroundSupported: backgroundTrackingSupported,
+    backgroundGranted: permission.background === "granted",
+  };
+  const limit = backgroundLimit(sourceInput);
+  const gps = useGpsSignal(chooseLocationSource(sourceInput), addSample);
   const pace = averagePaceMsPerKm(elapsedMs, track.distanceM);
   const persistence = useRunPersistence(session);
 
@@ -65,7 +76,7 @@ export function RunScreen() {
 
   return (
     <SafeAreaView style={styles.root}>
-      {inProgress ? <KeepScreenOn /> : null}
+      {inProgress && limit !== null ? <KeepScreenOn /> : null}
       <View style={styles.topBar}>
         <Pressable
           onPress={() => router.back()}
@@ -115,6 +126,14 @@ export function RunScreen() {
             <Text style={styles.timerLabel}>Duration</Text>
             <RunStats distanceM={track.distanceM} pace={pace} />
             <GpsStatus signal={gps} />
+            {status === "idle" && permission.background === "notGranted" ? (
+              <BackgroundPermissionCard
+                onAllow={permission.requestBackground}
+                onOpenSettings={permission.openSettings}
+              />
+            ) : (
+              <BackgroundNote status={status} limit={limit} />
+            )}
           </View>
 
           <View style={styles.controls}>
@@ -147,8 +166,9 @@ export function RunScreen() {
   );
 }
 
-// Keeps the display on while mounted. GPS updates stop when the screen locks
-// (foreground-only tracking), so the run screen stays on during a run.
+// Keeps the display on while mounted. Only used when the run can't record
+// in the background (Expo Go, or "Allow all the time" not granted): then GPS
+// stops when the screen locks, so the screen stays on during the run.
 function KeepScreenOn() {
   useKeepAwake("prymal-run", { suppressDeactivateWarnings: true });
   return null;
@@ -237,8 +257,8 @@ function PermissionGate({
           return {
             title: "Allow location to track your run",
             body:
-              "Prymal uses your location only while this run screen is open, " +
-              "to measure your run. It isn't tracked in the background or shared.",
+              "Prymal uses your location during a run to measure distance and " +
+              "map your route. It isn't used outside runs or shared.",
             action: <Button label="Allow location" onPress={onAllow} />,
           };
         }
@@ -340,6 +360,58 @@ function describeGps(signal: GpsSignal): {
         warn: true,
       };
   }
+}
+
+// Shown before Start in the app's own build when "Allow all the time" isn't
+// granted. Running without it still works, but stops if the user switches
+// apps, so it's offered, not required.
+function BackgroundPermissionCard({
+  onAllow,
+  onOpenSettings,
+}: {
+  onAllow: () => void;
+  onOpenSettings: () => void;
+}) {
+  return (
+    <View style={styles.bgCard}>
+      <Text style={styles.bgTitle} accessibilityRole="header">
+        Keep recording in other apps
+      </Text>
+      <Text style={styles.bgBody}>
+        To keep counting distance while you use Spotify, YouTube or other
+        apps, set Prymal's location access to "Allow all the time". Prymal
+        only uses it while a run is recording, and shows a notification
+        while it does.
+      </Text>
+      <Button label="Allow all the time" variant="secondary" onPress={onAllow} />
+      <Pressable onPress={onOpenSettings} hitSlop={8} accessibilityRole="link">
+        <Text style={styles.bgLink}>Open app settings</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+function BackgroundNote({
+  status,
+  limit,
+}: {
+  status: RunStatus;
+  limit: BackgroundLimit;
+}) {
+  if (status === "finished") return null;
+  if (limit === null) {
+    return (
+      <Text style={styles.bgNote}>Recording continues if you switch apps.</Text>
+    );
+  }
+  if (status === "idle") return null;
+  return (
+    <Text style={[styles.bgNote, styles.bgWarn]}>
+      {limit === "expoGo"
+        ? "Keep Prymal open: Expo Go can't record in the background."
+        : 'Keep Prymal open: without "Allow all the time", recording stops in other apps.'}
+    </Text>
+  );
 }
 
 function GpsStatus({ signal }: { signal: GpsSignal }) {
@@ -485,6 +557,40 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: "center",
     marginTop: spacing.xl,
+  },
+  bgCard: {
+    alignSelf: "stretch",
+    gap: spacing.md,
+    marginTop: spacing.xl,
+    padding: spacing.lg,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+  },
+  bgTitle: {
+    color: colors.textPrimary,
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  bgBody: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  bgLink: {
+    color: colors.accent,
+    fontSize: 14,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+  bgNote: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    textAlign: "center",
+    marginTop: spacing.md,
+  },
+  bgWarn: {
+    color: colors.textPrimary,
   },
   saveRow: {
     flexDirection: "row",
